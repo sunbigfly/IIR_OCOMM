@@ -1,0 +1,29 @@
+[Unit]
+Description=IIR OCOMM 非活性成分数据检索系统
+Documentation=https://github.com/your-repo/IIR_OCOMM
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/iir-ocomm/web_app
+ExecStart=/usr/bin/python3 -m http.server 8000
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 安全设置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/iir-ocomm/logs
+
+# 环境变量
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

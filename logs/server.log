@@ -1,0 +1,8 @@
+127.0.0.1 - - [28/Aug/2025 16:33:07] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:33:07] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:33:07] "GET /script.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:33:07] "GET /data.json HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:33:07] "GET /field_mapping.json HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:33:08] code 404, message File not found
+127.0.0.1 - - [28/Aug/2025 16:33:08] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [28/Aug/2025 16:33:10] "GET / HTTP/1.1" 200 -

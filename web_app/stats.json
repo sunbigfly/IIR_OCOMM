@@ -1,0 +1,23 @@
+{
+  "total_records": 9192,
+  "unique_ingredients": 1827,
+  "unique_routes": 59,
+  "unique_dosage_forms": 106,
+  "columns": [
+    "INGREDIENT_NAME",
+    "INGREDIENT_NAME(中文名)",
+    "ROUTE",
+    "DOSAGE_FORM",
+    "CAS_NUMBER",
+    "UNII",
+    "POTENCY_AMOUNT",
+    "POTENCY_UNIT",
+    "MAXIMUM_DAILY_EXPOSURE",
+    "MAXIMUM_DAILY_EXPOSURE_UNIT",
+    "RECORD_UPDATED",
+    "ROUTE(中文名)",
+    "ROUTE 解释说明 (Explanation)",
+    "DOSAGE_FORM(中文名)",
+    "DOSAGE_FORM 解释说明 (Explanation)"
+  ]
+}

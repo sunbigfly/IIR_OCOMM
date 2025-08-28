@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIR OCOMM - 非活性成分数据检索系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IIR OCOMM - 非活性成分数据检索系统</h1>
+            <p class="subtitle">Inactive Ingredient Database Search System</p>
+        </header>
+
+        <div class="search-section">
+            <h2>数据检索</h2>
+            <div class="search-form">
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="ingredient-search">成分名称 (INGREDIENT_NAME):</label>
+                        <input type="text" id="ingredient-search" placeholder="输入成分名称进行搜索...">
+                    </div>
+                    <div class="search-field">
+                        <label for="route-search">给药途径 (ROUTE):</label>
+                        <select id="route-search">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="dosage-form-search">剂型 (DOSAGE_FORM):</label>
+                        <select id="dosage-form-search">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                    <div class="search-field">
+                        <label for="cas-search">CAS号:</label>
+                        <input type="text" id="cas-search" placeholder="输入CAS号...">
+                    </div>
+                </div>
+                
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="unii-search">UNII:</label>
+                        <input type="text" id="unii-search" placeholder="输入UNII...">
+                    </div>
+                    <div class="search-actions">
+                        <button id="search-btn" class="btn-primary">搜索</button>
+                        <button id="reset-btn" class="btn-secondary">重置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="results-header">
+                <h2>搜索结果</h2>
+                <div class="results-info">
+                    <span id="results-count">共 0 条记录</span>
+                    <div class="pagination-info">
+                        <span id="page-info">第 1 页，共 1 页</span>
+                        <div class="pagination-controls">
+                            <button id="prev-page" class="btn-page" disabled>上一页</button>
+                            <button id="next-page" class="btn-page" disabled>下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>成分名称<br><small>INGREDIENT_NAME</small></th>
+                            <th>给药途径<br><small>ROUTE</small></th>
+                            <th>剂型<br><small>DOSAGE_FORM</small></th>
+                            <th>CAS号<br><small>CAS_NUMBER</small></th>
+                            <th>UNII</th>
+                            <th>效价量<br><small>POTENCY_AMOUNT</small></th>
+                            <th>效价单位<br><small>POTENCY_UNIT</small></th>
+                            <th>最大日暴露量<br><small>MAXIMUM_DAILY_EXPOSURE</small></th>
+                            <th>最大日暴露量单位<br><small>MAXIMUM_DAILY_EXPOSURE_UNIT</small></th>
+                            <th>记录更新时间<br><small>RECORD_UPDATED</small></th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>正在加载数据...</p>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div id="tooltip" class="tooltip" style="display: none;"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

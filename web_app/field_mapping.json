@@ -1,0 +1,47 @@
+{
+  "INGREDIENT_NAME": {
+    "en": "INGREDIENT_NAME",
+    "cn": "INGREDIENT_NAME(中文名)",
+    "display": "成分名称"
+  },
+  "ROUTE": {
+    "en": "ROUTE",
+    "cn": "ROUTE(中文名)",
+    "display": "给药途径",
+    "explanation": "ROUTE 解释说明 (Explanation)"
+  },
+  "DOSAGE_FORM": {
+    "en": "DOSAGE_FORM",
+    "cn": "DOSAGE_FORM(中文名)",
+    "display": "剂型",
+    "explanation": "DOSAGE_FORM 解释说明 (Explanation)"
+  },
+  "CAS_NUMBER": {
+    "field": "CAS_NUMBER",
+    "display": "CAS号"
+  },
+  "UNII": {
+    "field": "UNII",
+    "display": "UNII"
+  },
+  "POTENCY_AMOUNT": {
+    "field": "POTENCY_AMOUNT",
+    "display": "效价量"
+  },
+  "POTENCY_UNIT": {
+    "field": "POTENCY_UNIT",
+    "display": "效价单位"
+  },
+  "MAXIMUM_DAILY_EXPOSURE": {
+    "field": "MAXIMUM_DAILY_EXPOSURE",
+    "display": "最大日暴露量"
+  },
+  "MAXIMUM_DAILY_EXPOSURE_UNIT": {
+    "field": "MAXIMUM_DAILY_EXPOSURE_UNIT",
+    "display": "最大日暴露量单位"
+  },
+  "RECORD_UPDATED": {
+    "field": "RECORD_UPDATED",
+    "display": "记录更新时间"
+  }
+}
