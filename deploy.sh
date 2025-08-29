@@ -72,12 +72,17 @@ show_help() {
     echo "  --stop         停止后台服务"
     echo "  --status       查看服务状态"
     echo "  --logs         查看服务日志"
+    echo "  --network      开启局域网访问"
+    echo "  --firewall     配置防火墙规则"
     echo ""
     echo "示例:"
     echo "  $0                    # 完整部署并启动"
     echo "  $0 -p 3000           # 在端口3000启动"
     echo "  $0 -d                # 开发模式"
     echo "  $0 --nginx           # 使用Nginx部署"
+    echo "  $0 -n --daemon       # 后台启动并开启局域网访问"
+    echo "  $0 --network         # 查看局域网访问配置"
+    echo "  $0 --firewall        # 配置防火墙规则"
 }
 
 # 检查WSL环境
@@ -197,7 +202,8 @@ validate_build() {
 start_dev_server() {
     local port=$1
     local daemon_mode=$2
-    log_info "启动开发服务器 (端口: $port)..."
+    local bind_address=${3:-"127.0.0.1"}
+    log_info "启动开发服务器 (端口: $port, 绑定地址: $bind_address)..."
 
     cd $WEB_DIR
 
@@ -217,24 +223,36 @@ start_dev_server() {
         mkdir -p ../logs
 
         # 启动后台服务
-        nohup python3 -m http.server "$port" > "$log_file" 2>&1 &
+        nohup python3 -m http.server "$port" --bind "$bind_address" > "$log_file" 2>&1 &
         local server_pid=$!
         echo $server_pid > "$pid_file"
 
         log_success "服务器已在后台启动 (PID: $server_pid)"
-        log_info "访问地址: http://localhost:$port"
-        log_info "WSL访问地址: http://$(hostname -I | awk '{print $1}'):$port"
+        if [ "$bind_address" = "0.0.0.0" ]; then
+            log_info "本地访问: http://localhost:$port"
+            log_info "局域网访问: http://$(hostname -I | awk '{print $1}'):$port"
+            log_info "网络访问已开启，局域网内其他设备可以访问"
+        else
+            log_info "访问地址: http://localhost:$port"
+            log_info "WSL访问地址: http://$(hostname -I | awk '{print $1}'):$port"
+        fi
         log_info "日志文件: $(pwd)/$log_file"
         log_info "使用 $0 --stop 停止服务"
         log_info "使用 $0 --logs 查看日志"
     else
         # 前台模式
         log_success "服务器启动成功!"
-        log_info "访问地址: http://localhost:$port"
-        log_info "WSL访问地址: http://$(hostname -I | awk '{print $1}'):$port"
+        if [ "$bind_address" = "0.0.0.0" ]; then
+            log_info "本地访问: http://localhost:$port"
+            log_info "局域网访问: http://$(hostname -I | awk '{print $1}'):$port"
+            log_info "网络访问已开启，局域网内其他设备可以访问"
+        else
+            log_info "访问地址: http://localhost:$port"
+            log_info "WSL访问地址: http://$(hostname -I | awk '{print $1}'):$port"
+        fi
         log_info "按 Ctrl+C 停止服务器"
 
-        python3 -m http.server "$port"
+        python3 -m http.server "$port" --bind "$bind_address"
     fi
 }
 
@@ -410,6 +428,121 @@ show_logs() {
     fi
 }
 
+# 配置网络访问
+configure_network() {
+    local port=${1:-$PORT}
+    log_info "配置局域网访问..."
+
+    # 获取本机IP地址
+    local local_ip=$(hostname -I | awk '{print $1}')
+
+    log_info "本机IP地址: $local_ip"
+    log_info "服务端口: $port"
+
+    # 检查是否在WSL环境
+    if grep -q "microsoft" /proc/version 2>/dev/null; then
+        log_info "检测到WSL环境，配置端口转发..."
+
+        # 显示Windows端口转发命令
+        echo ""
+        log_warning "请在Windows PowerShell (管理员权限) 中执行以下命令："
+        echo "netsh interface portproxy add v4tov4 listenport=$port listenaddress=0.0.0.0 connectport=$port connectaddress=$local_ip"
+        echo ""
+        log_info "删除端口转发的命令："
+        echo "netsh interface portproxy delete v4tov4 listenport=$port listenaddress=0.0.0.0"
+        echo ""
+        log_info "查看现有端口转发："
+        echo "netsh interface portproxy show all"
+        echo ""
+    fi
+
+    # 显示访问信息
+    echo "=================================="
+    echo "  局域网访问配置信息"
+    echo "=================================="
+    echo "本地访问: http://localhost:$port"
+    echo "局域网访问: http://$local_ip:$port"
+    echo ""
+    echo "其他设备访问步骤："
+    echo "1. 确保设备在同一局域网内"
+    echo "2. 在浏览器中输入: http://$local_ip:$port"
+    echo "3. 如果无法访问，请检查防火墙设置"
+    echo "=================================="
+}
+
+# 配置防火墙
+configure_firewall() {
+    local port=${1:-$PORT}
+    log_info "配置防火墙规则..."
+
+    # 检查防火墙类型
+    if command -v ufw &> /dev/null; then
+        log_info "检测到UFW防火墙"
+
+        # 检查UFW状态
+        local ufw_status=$(sudo ufw status | head -1)
+        if echo "$ufw_status" | grep -q "inactive"; then
+            log_warning "UFW防火墙未启用"
+            echo "是否启用UFW防火墙? (y/N)"
+            read -r response
+            if [[ "$response" =~ ^[Yy]$ ]]; then
+                sudo ufw enable
+                log_success "UFW防火墙已启用"
+            fi
+        fi
+
+        # 添加端口规则
+        log_info "添加端口 $port 到防火墙规则..."
+        sudo ufw allow $port/tcp
+        log_success "防火墙规则已添加"
+
+        # 显示防火墙状态
+        echo ""
+        log_info "当前防火墙状态:"
+        sudo ufw status numbered
+
+    elif command -v firewall-cmd &> /dev/null; then
+        log_info "检测到firewalld防火墙"
+
+        # 添加端口规则
+        sudo firewall-cmd --permanent --add-port=$port/tcp
+        sudo firewall-cmd --reload
+        log_success "防火墙规则已添加"
+
+        # 显示防火墙状态
+        echo ""
+        log_info "当前防火墙状态:"
+        sudo firewall-cmd --list-ports
+
+    elif command -v iptables &> /dev/null; then
+        log_info "检测到iptables防火墙"
+
+        # 添加iptables规则
+        sudo iptables -A INPUT -p tcp --dport $port -j ACCEPT
+        log_success "iptables规则已添加"
+
+        # 保存规则 (Ubuntu/Debian)
+        if command -v iptables-save &> /dev/null; then
+            sudo iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+        fi
+
+        log_warning "注意: iptables规则可能在重启后丢失，建议使用ufw或firewalld"
+
+    else
+        log_warning "未检测到支持的防火墙，请手动配置防火墙规则"
+        echo "需要开放端口: $port/tcp"
+    fi
+
+    # WSL特殊说明
+    if grep -q "microsoft" /proc/version 2>/dev/null; then
+        echo ""
+        log_warning "WSL环境额外说明:"
+        echo "1. 需要在Windows防火墙中允许端口 $port"
+        echo "2. 可能需要配置Windows端口转发"
+        echo "3. 使用 ./deploy.sh --network 查看详细配置"
+    fi
+}
+
 # 清理构建文件
 clean_build() {
     log_info "清理构建文件..."
@@ -448,6 +581,9 @@ main() {
     local stop_service=false
     local check_status_only=false
     local show_logs_only=false
+    local configure_network_only=false
+    local configure_firewall_only=false
+    local enable_network_access=false
     
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
@@ -500,6 +636,18 @@ main() {
                 show_logs_only=true
                 shift
                 ;;
+            --network)
+                configure_network_only=true
+                shift
+                ;;
+            --firewall)
+                configure_firewall_only=true
+                shift
+                ;;
+            -n|--enable-network)
+                enable_network_access=true
+                shift
+                ;;
             *)
                 log_error "未知参数: $1"
                 show_help
@@ -534,6 +682,16 @@ main() {
         show_logs
         exit 0
     fi
+
+    if [ "$configure_network_only" = true ]; then
+        configure_network "$port"
+        exit 0
+    fi
+
+    if [ "$configure_firewall_only" = true ]; then
+        configure_firewall "$port"
+        exit 0
+    fi
     
     # 检查环境
     check_wsl_environment
@@ -558,7 +716,14 @@ main() {
     elif [ "$use_apache" = true ]; then
         deploy_apache
     else
-        start_dev_server "$port" "$daemon_mode"
+        # 确定绑定地址
+        local bind_address="127.0.0.1"
+        if [ "$enable_network_access" = true ]; then
+            bind_address="0.0.0.0"
+            log_info "启用局域网访问模式"
+        fi
+
+        start_dev_server "$port" "$daemon_mode" "$bind_address"
     fi
 }
 

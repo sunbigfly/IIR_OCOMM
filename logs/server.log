@@ -1,1 +1,37 @@
 127.0.0.1 - - [28/Aug/2025 16:35:04] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [28/Aug/2025 16:58:52] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:58:52] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:58:52] "GET /script.js HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 16:58:52] "GET /data.json HTTP/1.1" 200 -
+127.0.0.1 - - [28/Aug/2025 16:58:52] "GET /field_mapping.json HTTP/1.1" 200 -
+127.0.0.1 - - [28/Aug/2025 16:58:53] code 404, message File not found
+127.0.0.1 - - [28/Aug/2025 16:58:53] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [28/Aug/2025 17:01:59] "GET /data.json HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 17:01:59] "GET /field_mapping.json HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 17:01:59] code 404, message File not found
+127.0.0.1 - - [28/Aug/2025 17:01:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [28/Aug/2025 17:02:05] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 17:02:05] code 404, message File not found
+127.0.0.1 - - [28/Aug/2025 17:02:05] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [28/Aug/2025 17:02:07] "GET / HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 17:02:07] "GET /styles.css HTTP/1.1" 304 -
+127.0.0.1 - - [28/Aug/2025 17:02:08] code 404, message File not found
+127.0.0.1 - - [28/Aug/2025 17:02:08] "GET /favicon.ico HTTP/1.1" 404 -
+192.168.2.72 - - [28/Aug/2025 17:03:10] "GET / HTTP/1.1" 200 -
+192.168.2.72 - - [28/Aug/2025 17:03:10] "GET /styles.css HTTP/1.1" 200 -
+192.168.2.72 - - [28/Aug/2025 17:03:11] "GET /script.js HTTP/1.1" 200 -
+192.168.2.72 - - [28/Aug/2025 17:03:11] "GET /field_mapping.json HTTP/1.1" 200 -
+192.168.2.72 - - [28/Aug/2025 17:03:11] "GET /data.json HTTP/1.1" 200 -
+192.168.2.72 - - [28/Aug/2025 17:03:09] code 404, message File not found
+192.168.2.72 - - [28/Aug/2025 17:03:09] "GET /favicon.ico HTTP/1.1" 404 -
+192.168.2.72 - - [28/Aug/2025 17:03:10] code 404, message File not found
+192.168.2.72 - - [28/Aug/2025 17:03:10] "GET /favicon.ico HTTP/1.1" 404 -
+192.168.2.187 - - [28/Aug/2025 17:04:03] "GET / HTTP/1.1" 200 -
+192.168.2.187 - - [28/Aug/2025 17:04:03] "GET /styles.css HTTP/1.1" 200 -
+192.168.2.187 - - [28/Aug/2025 17:04:03] "GET /script.js HTTP/1.1" 200 -
+192.168.2.187 - - [28/Aug/2025 17:04:03] "GET /data.json HTTP/1.1" 200 -
+192.168.2.187 - - [28/Aug/2025 17:04:03] "GET /field_mapping.json HTTP/1.1" 200 -
+192.168.2.187 - - [28/Aug/2025 17:04:04] code 404, message File not found
+192.168.2.187 - - [28/Aug/2025 17:04:04] "GET /favicon.ico HTTP/1.1" 404 -
+192.168.2.187 - - [28/Aug/2025 17:04:04] code 404, message File not found
+192.168.2.187 - - [28/Aug/2025 17:04:04] "GET /favicon.ico HTTP/1.1" 404 -

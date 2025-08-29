@@ -52,6 +52,9 @@ echo   --daemon       后台运行模式
 echo   --stop         停止后台服务
 echo   --status       查看服务状态
 echo   --logs         查看服务日志
+echo   --network      配置局域网访问
+echo   --firewall     配置防火墙规则
+echo   -n             开启局域网访问
 echo   --wsl-setup    设置WSL环境
 echo.
 echo 示例:
