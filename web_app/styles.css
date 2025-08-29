@@ -316,7 +316,7 @@ header h1 {
     100% { transform: rotate(360deg); }
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 平板设备 */
 @media (max-width: 768px) {
     .container {
         padding: 10px;
@@ -328,6 +328,7 @@ header h1 {
 
     header h1 {
         font-size: 1.8em;
+        line-height: 1.2;
     }
 
     .search-section {
@@ -342,6 +343,7 @@ header h1 {
     .search-actions {
         justify-content: center;
         grid-column: 1 / -1;
+        margin-top: 10px;
     }
 
     .results-header {
@@ -353,49 +355,205 @@ header h1 {
 
     .results-info {
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
     }
 
     .pagination-info {
         flex-direction: column;
         gap: 8px;
-    }
-
-    #results-table {
-        font-size: 12px;
-    }
-
-    #results-table th,
-    #results-table td {
-        padding: 6px 4px;
-    }
-}
-
-@media (max-width: 480px) {
-    header h1 {
-        font-size: 1.6em;
-    }
-
-    .search-section {
-        padding: 12px;
-    }
-
-    .search-actions {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .btn-primary, .btn-secondary {
-        width: 100%;
+        align-items: center;
     }
 
     .pagination-controls {
         justify-content: center;
     }
 
+    #results-table {
+        font-size: 12px;
+        min-width: 600px; /* 确保表格在小屏幕上可以横向滚动 */
+    }
+
+    #results-table th,
+    #results-table td {
+        padding: 8px 4px;
+        white-space: nowrap;
+    }
+
+    /* 移动端表格优化 */
+    .table-container {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    /* 增大触摸目标 */
+    .btn-primary, .btn-secondary, .btn-page {
+        min-height: 44px;
+        padding: 12px 16px;
+        font-size: 16px; /* 防止iOS缩放 */
+    }
+
+    /* 输入框优化 */
+    .search-field input,
+    .search-field select {
+        min-height: 44px;
+        padding: 12px;
+        font-size: 16px; /* 防止iOS缩放 */
+    }
+}
+
+/* 响应式设计 - 手机设备 */
+@media (max-width: 480px) {
+    .container {
+        padding: 8px;
+    }
+
+    header {
+        padding: 15px 10px;
+        margin-bottom: 15px;
+    }
+
+    header h1 {
+        font-size: 1.5em;
+        line-height: 1.2;
+        word-break: break-word;
+    }
+
+    .subtitle {
+        font-size: 0.9em;
+    }
+
+    .search-section {
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .search-section h2 {
+        font-size: 1.2em;
+        margin-bottom: 12px;
+    }
+
+    .search-row {
+        gap: 10px;
+    }
+
+    .search-field label {
+        font-size: 0.85em;
+        margin-bottom: 6px;
+    }
+
+    .search-actions {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 15px;
+    }
+
+    .btn-primary, .btn-secondary {
+        width: 100%;
+        min-height: 48px;
+        padding: 14px 16px;
+        font-size: 16px;
+    }
+
+    .results-header {
+        padding: 10px 12px;
+    }
+
+    .results-header h2 {
+        font-size: 1.1em;
+        text-align: center;
+    }
+
+    .results-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .pagination-info {
+        gap: 6px;
+    }
+
+    .pagination-controls {
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-page {
+        min-height: 44px;
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    /* 移动端表格卡片化 */
+    #results-table {
+        min-width: 100%;
+        font-size: 11px;
+    }
+
+    #results-table th {
+        font-size: 10px;
+        padding: 6px 3px;
+    }
+
+    #results-table td {
+        padding: 6px 3px;
+        font-size: 10px;
+        line-height: 1.3;
+    }
+
+    #results-table th small {
+        font-size: 9px;
+    }
+
+    /* 提示框在移动端的优化 */
+    .tooltip {
+        max-width: 250px;
+        font-size: 11px;
+        padding: 8px 10px;
+    }
+
+    /* 加载动画优化 */
+    .loading {
+        padding: 30px 20px;
+    }
+
+    .spinner {
+        width: 35px;
+        height: 35px;
+        margin-bottom: 15px;
+    }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 360px) {
+    header h1 {
+        font-size: 1.3em;
+    }
+
+    .subtitle {
+        font-size: 0.85em;
+    }
+
+    .search-section {
+        padding: 10px;
+    }
+
+    .search-field input,
+    .search-field select {
+        padding: 10px;
+        font-size: 15px;
+    }
+
     #results-table th,
     #results-table td {
         padding: 4px 2px;
-        font-size: 11px;
+        font-size: 9px;
+    }
+
+    .tooltip {
+        max-width: 200px;
+        font-size: 10px;
     }
 }
 
@@ -438,4 +596,98 @@ header h1 {
 
 .table-container::-webkit-scrollbar-thumb:hover {
     background: var(--cadet-gray);
+}
+
+/* 移动端特有样式 */
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    /* 移除hover效果，改为更明显的激活状态 */
+    .search-field input:focus,
+    .search-field select:focus {
+        border-color: var(--cadet-gray);
+        box-shadow: 0 0 0 3px rgba(125, 152, 161, 0.25);
+        transform: scale(1.02);
+    }
+
+    .btn-primary:active,
+    .btn-secondary:active,
+    .btn-page:active {
+        transform: scale(0.98);
+        transition: transform 0.1s;
+    }
+
+    /* 表格行点击效果 */
+    #results-table tbody tr:active {
+        background-color: rgba(125, 152, 161, 0.3) !important;
+    }
+
+    /* 优化提示框触发 */
+    .route-cell,
+    .dosage-form-cell {
+        position: relative;
+    }
+
+    .route-cell::before,
+    .dosage-form-cell::before {
+        content: '?';
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 12px;
+        height: 12px;
+        background: var(--cadet-gray);
+        color: white;
+        border-radius: 50%;
+        font-size: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+    }
+}
+
+/* 防止移动端双击缩放 */
+input, select, button {
+    touch-action: manipulation;
+}
+
+/* 移动端滚动优化 */
+.table-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* 安全区域适配（iPhone X及以上） */
+@supports (padding: max(0px)) {
+    .container {
+        padding-left: max(15px, env(safe-area-inset-left));
+        padding-right: max(15px, env(safe-area-inset-right));
+        padding-bottom: max(15px, env(safe-area-inset-bottom));
+    }
+}
+
+/* 横屏模式优化 */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    header {
+        padding: 10px 15px;
+        margin-bottom: 10px;
+    }
+
+    header h1 {
+        font-size: 1.4em;
+    }
+
+    .search-section {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    .search-section h2 {
+        font-size: 1.1em;
+        margin-bottom: 8px;
+    }
+
+    .table-container {
+        max-height: 300px;
+    }
 }
