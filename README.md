@@ -12,13 +12,31 @@ node server.js
 
 # 或者使用 npm
 npm start
+
+# 指定端口
+PORT=3000 node server.js
 ```
 
-### 方式二：直接使用 Node.js
+### 方式二：注册为系统服务（推荐用于生产环境）
 
 ```bash
-# 直接运行（如果有执行权限）
-./server.js
+# 安装系统服务
+sudo ./service-manager.sh install
+
+# 启动服务
+sudo ./service-manager.sh start
+
+# 查看服务状态
+./service-manager.sh status
+
+# 查看服务日志
+./service-manager.sh logs
+
+# 停止服务
+sudo ./service-manager.sh stop
+
+# 卸载服务
+sudo ./service-manager.sh uninstall
 ```
 
 ### 方式三：使用 Python（备用）
@@ -44,6 +62,7 @@ IIR_OCOMM/
 │   └── stats.json          # 统计信息
 ├── server.js               # Node.js 服务器
 ├── package.json            # Node.js 项目配置
+├── service-manager.sh      # 系统服务管理脚本
 └── README.md               # 项目说明
 ```
 
@@ -103,6 +122,39 @@ PORT=3000 node server.js
 ```javascript
 const PORT = process.env.PORT || 8000;
 const WEB_DIR = 'web_app';
+```
+
+### 系统服务管理
+
+系统服务安装后会：
+- 自动开机启动
+- 在服务异常退出时自动重启
+- 将日志输出到系统日志
+- 以当前用户身份运行
+- 默认监听 8000 端口
+
+服务文件位置：`/etc/systemd/system/iir-ocomm.service`
+
+### 服务管理命令
+
+```bash
+# 查看所有可用命令
+./service-manager.sh help
+
+# 安装服务（需要 sudo）
+sudo ./service-manager.sh install
+
+# 启动/停止/重启服务（需要 sudo）
+sudo ./service-manager.sh start
+sudo ./service-manager.sh stop
+sudo ./service-manager.sh restart
+
+# 查看状态和日志（无需 sudo）
+./service-manager.sh status
+./service-manager.sh logs
+
+# 卸载服务（需要 sudo）
+sudo ./service-manager.sh uninstall
 ```
 
 ## 📝 更新日志
