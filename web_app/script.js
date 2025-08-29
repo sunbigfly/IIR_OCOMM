@@ -257,6 +257,28 @@ function displayResults() {
   elements.prevPageBtn.disabled = currentPage <= 1;
   elements.nextPageBtn.disabled = currentPage >= totalPages;
 
+  // 检测是否为移动端
+  const isMobile = window.innerWidth <= 480;
+
+  if (isMobile) {
+    displayMobileCards(currentItems);
+  } else {
+    displayTable(currentItems);
+  }
+
+  // 绑定提示框事件
+  bindTooltipEvents();
+}
+
+// 显示桌面端表格
+function displayTable(currentItems) {
+  // 确保表格容器可见，隐藏移动端卡片
+  const tableContainer = document.querySelector('.table-container');
+  const mobileContainer = document.querySelector('.mobile-cards');
+
+  if (tableContainer) tableContainer.style.display = 'block';
+  if (mobileContainer) mobileContainer.style.display = 'none';
+
   // 清空表格
   elements.resultsTbody.innerHTML = "";
 
@@ -265,9 +287,31 @@ function displayResults() {
     const row = createTableRow(item);
     elements.resultsTbody.appendChild(row);
   });
+}
 
-  // 绑定提示框事件
-  bindTooltipEvents();
+// 显示移动端卡片
+function displayMobileCards(currentItems) {
+  // 确保移动端容器可见，隐藏表格
+  const tableContainer = document.querySelector('.table-container');
+  let mobileContainer = document.querySelector('.mobile-cards');
+
+  if (tableContainer) tableContainer.style.display = 'none';
+
+  // 如果移动端容器不存在，创建它
+  if (!mobileContainer) {
+    mobileContainer = document.createElement('div');
+    mobileContainer.className = 'mobile-cards';
+    tableContainer.parentNode.insertBefore(mobileContainer, tableContainer.nextSibling);
+  }
+
+  mobileContainer.style.display = 'block';
+  mobileContainer.innerHTML = '';
+
+  // 添加卡片
+  currentItems.forEach((item) => {
+    const card = createMobileCard(item);
+    mobileContainer.appendChild(card);
+  });
 }
 
 // 创建表格行
@@ -333,6 +377,67 @@ function createTableRow(item) {
   return row;
 }
 
+// 创建移动端卡片
+function createMobileCard(item) {
+  const card = document.createElement('div');
+  card.className = 'mobile-card';
+
+  // 卡片标题（成分名称）
+  const header = document.createElement('div');
+  header.className = 'mobile-card-header';
+  const ingredientName = item.INGREDIENT_NAME || "";
+  const ingredientNameCn = item["INGREDIENT_NAME(中文名)"] || "";
+  header.textContent = ingredientNameCn ? `${ingredientNameCn} (${ingredientName})` : ingredientName;
+  card.appendChild(header);
+
+  // 创建字段行的辅助函数
+  function createCardRow(label, value, tooltip = null) {
+    const row = document.createElement('div');
+    row.className = 'mobile-card-row';
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'mobile-card-label';
+    labelDiv.textContent = label;
+
+    const valueDiv = document.createElement('div');
+    valueDiv.className = 'mobile-card-value';
+    if (tooltip) {
+      valueDiv.className += ' with-tooltip';
+      valueDiv.setAttribute('data-tooltip', tooltip);
+    }
+    valueDiv.innerHTML = value || '-';
+
+    row.appendChild(labelDiv);
+    row.appendChild(valueDiv);
+    return row;
+  }
+
+  // 给药途径
+  const routeName = item.ROUTE || "";
+  const routeNameCn = item["ROUTE(中文名)"] || "";
+  const routeExplanation = item["ROUTE 解释说明 (Explanation)"] || "";
+  const routeDisplay = routeNameCn ? `${routeNameCn}<br><small style="color: #666;">${routeName}</small>` : routeName;
+  card.appendChild(createCardRow('给药途径', routeDisplay, routeExplanation));
+
+  // 剂型
+  const dosageFormName = item.DOSAGE_FORM || "";
+  const dosageFormNameCn = item["DOSAGE_FORM(中文名)"] || "";
+  const dosageFormExplanation = item["DOSAGE_FORM 解释说明 (Explanation)"] || "";
+  const dosageFormDisplay = dosageFormNameCn ? `${dosageFormNameCn}<br><small style="color: #666;">${dosageFormName}</small>` : dosageFormName;
+  card.appendChild(createCardRow('剂型', dosageFormDisplay, dosageFormExplanation));
+
+  // 其他字段
+  card.appendChild(createCardRow('CAS号', item.CAS_NUMBER));
+  card.appendChild(createCardRow('UNII', item.UNII));
+  card.appendChild(createCardRow('效价量', item.POTENCY_AMOUNT));
+  card.appendChild(createCardRow('效价单位', item.POTENCY_UNIT));
+  card.appendChild(createCardRow('最大日暴露量', item.MAXIMUM_DAILY_EXPOSURE));
+  card.appendChild(createCardRow('暴露量单位', item.MAXIMUM_DAILY_EXPOSURE_UNIT));
+  card.appendChild(createCardRow('记录更新时间', item.RECORD_UPDATED));
+
+  return card;
+}
+
 // 翻页
 function changePage(direction) {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -349,9 +454,21 @@ function bindTooltipEvents() {
   const tooltipElements = document.querySelectorAll("[data-tooltip]");
 
   tooltipElements.forEach((element) => {
+    // 鼠标事件（桌面端）
     element.addEventListener("mouseenter", showTooltip);
     element.addEventListener("mouseleave", hideTooltip);
     element.addEventListener("mousemove", moveTooltip);
+
+    // 触摸事件（移动端）
+    element.addEventListener("touchstart", handleTouchTooltip);
+    element.addEventListener("click", handleClickTooltip);
+  });
+
+  // 点击其他地方隐藏提示框
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-tooltip]")) {
+      hideTooltip();
+    }
   });
 }
 
@@ -393,6 +510,62 @@ function moveTooltip(event) {
   tooltip.style.top = top + "px";
 }
 
+// 处理触摸设备的提示框
+function handleTouchTooltip(event) {
+  event.preventDefault();
+  const tooltipText = event.target.getAttribute("data-tooltip");
+  if (tooltipText) {
+    elements.tooltip.textContent = tooltipText;
+    elements.tooltip.style.display = "block";
+
+    // 在触摸位置显示提示框
+    const touch = event.touches[0];
+    positionTooltipForTouch(touch.clientX, touch.clientY);
+  }
+}
+
+// 处理点击显示提示框（移动端）
+function handleClickTooltip(event) {
+  // 检测是否为触摸设备
+  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+    event.preventDefault();
+    const tooltipText = event.target.getAttribute("data-tooltip");
+    if (tooltipText) {
+      elements.tooltip.textContent = tooltipText;
+      elements.tooltip.style.display = "block";
+      positionTooltipForTouch(event.clientX, event.clientY);
+    }
+  }
+}
+
+// 为触摸设备定位提示框
+function positionTooltipForTouch(clientX, clientY) {
+  const tooltip = elements.tooltip;
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  let left = clientX - tooltipRect.width / 2;
+  let top = clientY - tooltipRect.height - 20;
+
+  // 防止超出左右边界
+  if (left < 10) left = 10;
+  if (left + tooltipRect.width > viewportWidth - 10) {
+    left = viewportWidth - tooltipRect.width - 10;
+  }
+
+  // 防止超出上下边界
+  if (top < 10) {
+    top = clientY + 20;
+  }
+  if (top + tooltipRect.height > viewportHeight - 10) {
+    top = viewportHeight - tooltipRect.height - 10;
+  }
+
+  tooltip.style.left = left + "px";
+  tooltip.style.top = top + "px";
+}
+
 // 显示/隐藏加载动画
 function showLoading(show) {
   elements.loading.style.display = show ? "block" : "none";
@@ -423,6 +596,24 @@ function formatNumber(value) {
 window.addEventListener("error", (event) => {
   console.error("发生错误:", event.error);
 });
+
+// 窗口大小变化时重新渲染
+window.addEventListener('resize', debounce(() => {
+  displayResults();
+}, 250));
+
+// 防抖函数
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 // 页面加载完成后初始化
 document.addEventListener("DOMContentLoaded", initApp);
