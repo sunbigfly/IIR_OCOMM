@@ -159,6 +159,16 @@ function bindEvents() {
       input.addEventListener("keypress", (e) => {
         if (e.key === "Enter") {
           performSearch();
+          // 移动端搜索后聚焦到结果区域
+          if (isMobileDevice()) {
+            setTimeout(() => {
+              const resultsHeader = document.querySelector('#results-heading');
+              if (resultsHeader) {
+                resultsHeader.focus();
+                resultsHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 500);
+          }
         }
       });
     }
@@ -166,8 +176,68 @@ function bindEvents() {
 
   // 下拉框变化时自动搜索
   [elements.routeSearch, elements.dosageFormSearch].forEach((select) => {
-    select.addEventListener("change", performSearch);
+    select.addEventListener("change", (e) => {
+      performSearch();
+      // 移动端选择后提供反馈
+      if (isMobileDevice()) {
+        announceToScreenReader(`已选择${e.target.options[e.target.selectedIndex].text}`);
+      }
+    });
   });
+
+  // 键盘导航支持
+  document.addEventListener('keydown', handleKeyboardNavigation);
+}
+
+// 键盘导航处理
+function handleKeyboardNavigation(e) {
+  // ESC键隐藏提示框
+  if (e.key === 'Escape') {
+    hideTooltip();
+  }
+
+  // 移动端特殊键盘支持
+  if (isMobileDevice()) {
+    // Tab键优化焦点管理
+    if (e.key === 'Tab') {
+      // 确保焦点在可见元素上
+      setTimeout(() => {
+        const focusedElement = document.activeElement;
+        if (focusedElement && focusedElement.offsetParent === null) {
+          // 如果焦点元素不可见，移动到下一个可见元素
+          const nextFocusable = getNextFocusableElement(focusedElement);
+          if (nextFocusable) {
+            nextFocusable.focus();
+          }
+        }
+      }, 0);
+    }
+  }
+}
+
+// 获取下一个可聚焦元素
+function getNextFocusableElement(currentElement) {
+  const focusableElements = document.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+  const currentIndex = Array.from(focusableElements).indexOf(currentElement);
+  return focusableElements[currentIndex + 1] || focusableElements[0];
+}
+
+// 屏幕阅读器公告
+function announceToScreenReader(message) {
+  const announcement = document.createElement('div');
+  announcement.setAttribute('aria-live', 'polite');
+  announcement.setAttribute('aria-atomic', 'true');
+  announcement.className = 'sr-only';
+  announcement.textContent = message;
+
+  document.body.appendChild(announcement);
+
+  // 清理公告元素
+  setTimeout(() => {
+    document.body.removeChild(announcement);
+  }, 1000);
 }
 
 // 执行搜索
@@ -257,8 +327,8 @@ function displayResults() {
   elements.prevPageBtn.disabled = currentPage <= 1;
   elements.nextPageBtn.disabled = currentPage >= totalPages;
 
-  // 检测是否为移动端
-  const isMobile = window.innerWidth <= 480;
+  // 检测是否为移动端 - 使用更精确的检测
+  const isMobile = isMobileDevice();
 
   if (isMobile) {
     displayMobileCards(currentItems);
@@ -268,6 +338,14 @@ function displayResults() {
 
   // 绑定提示框事件
   bindTooltipEvents();
+
+  // 移动端优化：滚动到结果顶部
+  if (isMobile && currentPage > 1) {
+    const resultsSection = document.querySelector('.results-section');
+    if (resultsSection) {
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 }
 
 // 显示桌面端表格
@@ -382,18 +460,29 @@ function createMobileCard(item) {
   const card = document.createElement('div');
   card.className = 'mobile-card';
 
+  // 添加卡片点击事件（用于展开/收起详细信息）
+  card.setAttribute('data-expanded', 'false');
+
   // 卡片标题（成分名称）
   const header = document.createElement('div');
   header.className = 'mobile-card-header';
   const ingredientName = item.INGREDIENT_NAME || "";
   const ingredientNameCn = item["INGREDIENT_NAME(中文名)"] || "";
-  header.textContent = ingredientNameCn ? `${ingredientNameCn} (${ingredientName})` : ingredientName;
+
+  // 创建标题内容
+  const titleText = ingredientNameCn ? `${ingredientNameCn}` : ingredientName;
+  const subtitleText = ingredientNameCn ? ingredientName : '';
+
+  header.innerHTML = `
+    <div class="card-title">${titleText}</div>
+    ${subtitleText ? `<div class="card-subtitle">${subtitleText}</div>` : ''}
+  `;
   card.appendChild(header);
 
   // 创建字段行的辅助函数
-  function createCardRow(label, value, tooltip = null) {
+  function createCardRow(label, value, tooltip = null, isImportant = false) {
     const row = document.createElement('div');
-    row.className = 'mobile-card-row';
+    row.className = `mobile-card-row ${isImportant ? 'important' : ''}`;
 
     const labelDiv = document.createElement('div');
     labelDiv.className = 'mobile-card-label';
@@ -404,8 +493,12 @@ function createMobileCard(item) {
     if (tooltip) {
       valueDiv.className += ' with-tooltip';
       valueDiv.setAttribute('data-tooltip', tooltip);
+      valueDiv.setAttribute('aria-label', `${label}: ${value || '无数据'}. 点击查看详细说明`);
     }
-    valueDiv.innerHTML = value || '-';
+
+    // 处理空值显示
+    const displayValue = value && value.toString().trim() !== '' ? value : '—';
+    valueDiv.innerHTML = displayValue;
 
     row.appendChild(labelDiv);
     row.appendChild(valueDiv);
@@ -444,8 +537,52 @@ function changePage(direction) {
   const newPage = currentPage + direction;
 
   if (newPage >= 1 && newPage <= totalPages) {
+    // 显示加载状态（移动端优化）
+    if (isMobileDevice()) {
+      showPageLoading(true);
+    }
+
     currentPage = newPage;
-    displayResults();
+
+    // 使用 requestAnimationFrame 优化性能
+    requestAnimationFrame(() => {
+      displayResults();
+
+      if (isMobileDevice()) {
+        showPageLoading(false);
+        // 平滑滚动到结果顶部
+        const resultsHeader = document.querySelector('.results-header');
+        if (resultsHeader) {
+          smoothScrollToElement(resultsHeader, 20);
+        }
+      }
+    });
+  }
+}
+
+// 显示分页加载状态
+function showPageLoading(show) {
+  const mobileContainer = document.querySelector('.mobile-cards');
+  const tableContainer = document.querySelector('.table-container');
+
+  if (show) {
+    if (mobileContainer) {
+      mobileContainer.style.opacity = '0.6';
+      mobileContainer.style.pointerEvents = 'none';
+    }
+    if (tableContainer) {
+      tableContainer.style.opacity = '0.6';
+      tableContainer.style.pointerEvents = 'none';
+    }
+  } else {
+    if (mobileContainer) {
+      mobileContainer.style.opacity = '1';
+      mobileContainer.style.pointerEvents = 'auto';
+    }
+    if (tableContainer) {
+      tableContainer.style.opacity = '1';
+      tableContainer.style.pointerEvents = 'auto';
+    }
   }
 }
 
@@ -515,25 +652,58 @@ function handleTouchTooltip(event) {
   event.preventDefault();
   const tooltipText = event.target.getAttribute("data-tooltip");
   if (tooltipText) {
+    // 添加触觉反馈（如果支持）
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
     elements.tooltip.textContent = tooltipText;
     elements.tooltip.style.display = "block";
+    elements.tooltip.classList.add('mobile-tooltip');
 
     // 在触摸位置显示提示框
     const touch = event.touches[0];
     positionTooltipForTouch(touch.clientX, touch.clientY);
+
+    // 自动隐藏提示框（移动端体验优化）
+    setTimeout(() => {
+      hideTooltip();
+    }, 4000);
   }
 }
 
 // 处理点击显示提示框（移动端）
 function handleClickTooltip(event) {
   // 检测是否为触摸设备
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+  if (isMobileDevice()) {
     event.preventDefault();
+    event.stopPropagation();
+
     const tooltipText = event.target.getAttribute("data-tooltip");
     if (tooltipText) {
+      // 如果提示框已经显示且是同一个元素，则隐藏
+      if (elements.tooltip.style.display === "block" &&
+          elements.tooltip.getAttribute('data-current-target') === event.target.outerHTML) {
+        hideTooltip();
+        return;
+      }
+
+      // 添加触觉反馈
+      if (navigator.vibrate) {
+        navigator.vibrate(30);
+      }
+
       elements.tooltip.textContent = tooltipText;
       elements.tooltip.style.display = "block";
+      elements.tooltip.classList.add('mobile-tooltip');
+      elements.tooltip.setAttribute('data-current-target', event.target.outerHTML);
+
       positionTooltipForTouch(event.clientX, event.clientY);
+
+      // 移动端自动隐藏
+      setTimeout(() => {
+        hideTooltip();
+      }, 5000);
     }
   }
 }
@@ -613,6 +783,30 @@ function debounce(func, wait) {
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
+}
+
+// 移动设备检测函数
+function isMobileDevice() {
+  // 综合检测移动设备
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+  const isSmallScreen = window.innerWidth <= 768;
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  return isMobileUA || (isSmallScreen && isTouchDevice);
+}
+
+// 优化的移动端滚动函数
+function smoothScrollToElement(element, offset = 0) {
+  if (!element) return;
+
+  const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+  const offsetPosition = elementPosition - offset;
+
+  window.scrollTo({
+    top: offsetPosition,
+    behavior: 'smooth'
+  });
 }
 
 // 页面加载完成后初始化

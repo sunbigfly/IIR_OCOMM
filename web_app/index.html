@@ -21,8 +21,8 @@
         <p class="subtitle">Inactive Ingredient Database Search System</p>
       </header>
 
-      <div class="search-section">
-        <h2>数据检索</h2>
+      <div class="search-section" role="search" aria-labelledby="search-heading">
+        <h2 id="search-heading">数据检索</h2>
         <div class="search-form">
           <div class="search-row">
             <div class="search-field">
@@ -30,52 +30,82 @@
               <input
                 type="text"
                 id="ingredient-search"
-                placeholder="输入成分名称进行搜索..." />
+                placeholder="输入成分名称进行搜索..."
+                aria-describedby="ingredient-help"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false" />
+              <div id="ingredient-help" class="sr-only">支持中英文搜索，输入部分名称即可匹配</div>
             </div>
             <div class="search-field">
               <label for="route-search">给药途径 (ROUTE):</label>
-              <select id="route-search">
+              <select id="route-search" aria-describedby="route-help">
                 <option value="">全部</option>
               </select>
+              <div id="route-help" class="sr-only">选择特定的给药途径进行筛选</div>
             </div>
           </div>
 
           <div class="search-row">
             <div class="search-field">
               <label for="dosage-form-search">剂型 (DOSAGE_FORM):</label>
-              <select id="dosage-form-search">
+              <select id="dosage-form-search" aria-describedby="dosage-help">
                 <option value="">全部</option>
               </select>
+              <div id="dosage-help" class="sr-only">选择特定的药物剂型进行筛选</div>
             </div>
             <div class="search-field">
               <label for="cas-search">CAS号:</label>
-              <input type="text" id="cas-search" placeholder="输入CAS号..." />
+              <input type="text" id="cas-search" placeholder="输入CAS号..."
+                     aria-describedby="cas-help"
+                     autocomplete="off"
+                     autocorrect="off"
+                     autocapitalize="off"
+                     spellcheck="false" />
+              <div id="cas-help" class="sr-only">输入化学文摘社注册号进行精确搜索</div>
             </div>
           </div>
 
           <div class="search-row">
             <div class="search-field">
               <label for="unii-search">UNII:</label>
-              <input type="text" id="unii-search" placeholder="输入UNII..." />
+              <input type="text" id="unii-search" placeholder="输入UNII..."
+                     aria-describedby="unii-help"
+                     autocomplete="off"
+                     autocorrect="off"
+                     autocapitalize="off"
+                     spellcheck="false" />
+              <div id="unii-help" class="sr-only">输入唯一成分标识符进行精确搜索</div>
             </div>
             <div class="search-actions">
-              <button id="search-btn" class="btn-primary">搜索</button>
-              <button id="reset-btn" class="btn-secondary">重置</button>
+              <button id="search-btn" class="btn-primary"
+                      aria-describedby="search-btn-help">搜索</button>
+              <button id="reset-btn" class="btn-secondary"
+                      aria-describedby="reset-btn-help">重置</button>
+              <div id="search-btn-help" class="sr-only">执行搜索操作，支持回车键快捷搜索</div>
+              <div id="reset-btn-help" class="sr-only">清空所有搜索条件并显示全部数据</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="results-section">
+      <div class="results-section" role="region" aria-labelledby="results-heading" aria-live="polite">
         <div class="results-header">
-          <h2>搜索结果</h2>
+          <h2 id="results-heading">搜索结果</h2>
           <div class="results-info">
-            <span id="results-count">共 0 条记录</span>
+            <span id="results-count" aria-live="polite" aria-atomic="true">共 0 条记录</span>
             <div class="pagination-info">
-              <span id="page-info">第 1 页，共 1 页</span>
-              <div class="pagination-controls">
-                <button id="prev-page" class="btn-page" disabled>上一页</button>
-                <button id="next-page" class="btn-page" disabled>下一页</button>
+              <span id="page-info" aria-live="polite" aria-atomic="true">第 1 页，共 1 页</span>
+              <div class="pagination-controls" role="navigation" aria-label="分页导航">
+                <button id="prev-page" class="btn-page" disabled
+                        aria-label="上一页"
+                        aria-describedby="prev-page-help">上一页</button>
+                <button id="next-page" class="btn-page" disabled
+                        aria-label="下一页"
+                        aria-describedby="next-page-help">下一页</button>
+                <div id="prev-page-help" class="sr-only">跳转到上一页结果</div>
+                <div id="next-page-help" class="sr-only">跳转到下一页结果</div>
               </div>
             </div>
           </div>
