@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
 const http = require("http");
-const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const url = require("url");
 
 // 配置
 const HTTP_PORT = process.env.PORT || 8000;
-const HTTPS_PORT = process.env.HTTPS_PORT || 8443;
 const WEB_DIR = "web_app";
 
 // MIME 类型映射
@@ -118,18 +116,6 @@ function handleRequest(req, res) {
 // 创建HTTP服务器
 const httpServer = http.createServer(handleRequest);
 
-// 创建HTTPS服务器
-let httpsServer = null;
-try {
-  const sslOptions = {
-    key: fs.readFileSync(path.join(__dirname, "ssl", "server.key")),
-    cert: fs.readFileSync(path.join(__dirname, "ssl", "server.crt")),
-  };
-  httpsServer = https.createServer(sslOptions, handleRequest);
-} catch (error) {
-  console.log("⚠️  SSL证书未找到，仅启动HTTP服务器");
-}
-
 // 启动HTTP服务器
 httpServer.listen(HTTP_PORT, "0.0.0.0", () => {
   // 获取本机IP地址
@@ -152,14 +138,6 @@ httpServer.listen(HTTP_PORT, "0.0.0.0", () => {
   console.log(`🚀 IIR OCOMM 服务器启动成功!`);
   console.log(`📍 HTTP本地访问: http://localhost:${HTTP_PORT}`);
   console.log(`🌐 HTTP局域网访问: http://${localIP}:${HTTP_PORT}`);
-
-  // 启动HTTPS服务器
-  if (httpsServer) {
-    httpsServer.listen(HTTPS_PORT, "0.0.0.0", () => {
-      console.log(`🔒 HTTPS本地访问: https://localhost:${HTTPS_PORT}`);
-      console.log(`🌐 HTTPS局域网访问: https://${localIP}:${HTTPS_PORT}`);
-    });
-  }
 
   console.log(`📁 服务目录: ${path.resolve(WEB_DIR)}`);
   console.log(`⏹️  按 Ctrl+C 停止服务器`);
@@ -201,10 +179,9 @@ function gracefulShutdown(signal) {
   }, 25000); // 25秒强制退出，比systemd的30秒少一点
 
   let httpClosed = false;
-  let httpsClosed = !httpsServer; // 如果没有HTTPS服务器，标记为已关闭
 
   const checkAllClosed = () => {
-    if (httpClosed && httpsClosed) {
+    if (httpClosed) {
       clearTimeout(timeout);
       console.log("✅ 服务器已停止");
       process.exit(0);
@@ -221,19 +198,6 @@ function gracefulShutdown(signal) {
     httpClosed = true;
     checkAllClosed();
   });
-
-  // 关闭HTTPS服务器（如果存在）
-  if (httpsServer) {
-    httpsServer.close((err) => {
-      if (err) {
-        console.error("❌ HTTPS服务器关闭错误:", err);
-      } else {
-        console.log("✅ HTTPS服务器已关闭");
-      }
-      httpsClosed = true;
-      checkAllClosed();
-    });
-  }
 }
 
 // 注册信号处理
