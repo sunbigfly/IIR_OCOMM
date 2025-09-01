@@ -134,8 +134,9 @@ const CacheManager = {
   // 获取缓存大小信息
   getCacheInfo() {
     try {
-      const dataSize = (localStorage.getItem(CACHE_CONFIG.DATA_KEY) || "")
-        .length;
+      const dataString = localStorage.getItem(CACHE_CONFIG.DATA_KEY) || "";
+      // 使用 Blob 获取更准确的字节大小
+      const dataSize = new Blob([dataString]).size;
 
       return {
         dataSize: (dataSize / 1024 / 1024).toFixed(2) + " MB",
