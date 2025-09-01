@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
 // 配置
-const PORT = process.env.PORT || 8000;
+const HTTP_PORT = process.env.PORT || 8000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 8443;
 const WEB_DIR = 'web_app';
 
 // MIME 类型映射
@@ -29,8 +31,8 @@ function getMimeType(filePath) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-// 创建 HTTP 服务器
-const server = http.createServer((req, res) => {
+// 请求处理函数
+function handleRequest(req, res) {
   // 解析 URL
   const parsedUrl = url.parse(req.url);
   let pathname = parsedUrl.pathname;
@@ -109,12 +111,54 @@ const server = http.createServer((req, res) => {
       res.end(data);
     });
   });
-});
+}
 
-// 启动服务器
-server.listen(PORT, () => {
+// 创建HTTP服务器
+const httpServer = http.createServer(handleRequest);
+
+// 创建HTTPS服务器
+let httpsServer = null;
+try {
+  const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'ssl', 'server.key')),
+    cert: fs.readFileSync(path.join(__dirname, 'ssl', 'server.crt'))
+  };
+  httpsServer = https.createServer(sslOptions, handleRequest);
+} catch (error) {
+  console.log('⚠️  SSL证书未找到，仅启动HTTP服务器');
+}
+
+// 启动HTTP服务器
+httpServer.listen(HTTP_PORT, '0.0.0.0', () => {
+  // 获取本机IP地址
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  let localIP = 'localhost';
+
+  // 查找第一个非回环的IPv4地址
+  for (const interfaceName in networkInterfaces) {
+    const interfaces = networkInterfaces[interfaceName];
+    for (const iface of interfaces) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIP = iface.address;
+        break;
+      }
+    }
+    if (localIP !== 'localhost') break;
+  }
+
   console.log(`🚀 IIR OCOMM 服务器启动成功!`);
-  console.log(`📍 本地访问: http://localhost:${PORT}`);
+  console.log(`📍 HTTP本地访问: http://localhost:${HTTP_PORT}`);
+  console.log(`🌐 HTTP局域网访问: http://${localIP}:${HTTP_PORT}`);
+
+  // 启动HTTPS服务器
+  if (httpsServer) {
+    httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+      console.log(`🔒 HTTPS本地访问: https://localhost:${HTTPS_PORT}`);
+      console.log(`🌐 HTTPS局域网访问: https://${localIP}:${HTTPS_PORT}`);
+    });
+  }
+
   console.log(`📁 服务目录: ${path.resolve(WEB_DIR)}`);
   console.log(`⏹️  按 Ctrl+C 停止服务器`);
   
@@ -134,14 +178,14 @@ server.listen(PORT, () => {
     
     exec(command, (error) => {
       if (error) {
-        console.log(`💡 请手动在浏览器中打开: http://localhost:${PORT}`);
+        console.log(`💡 请手动在浏览器中打开: http://localhost:${HTTP_PORT}`);
       }
     });
   };
-  
+
   // 延迟 1 秒后打开浏览器
   setTimeout(() => {
-    open(`http://localhost:${PORT}`);
+    open(`http://localhost:${HTTP_PORT}`);
   }, 1000);
 });
 
