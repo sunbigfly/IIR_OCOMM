@@ -408,15 +408,15 @@ function performSearch() {
     unii: elements.uniiSearch.value.trim().toLowerCase(),
   };
 
-  // 解析逗号分隔的批量搜索
+  // 解析分号分隔的批量搜索
   const ingredientKeywords = filters.ingredient
-    ? filters.ingredient.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    ? filters.ingredient.split(/[;；]/).map(k => k.trim()).filter(k => k)
     : [];
   const casKeywords = filters.cas
-    ? filters.cas.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    ? filters.cas.split(/[;；]/).map(k => k.trim()).filter(k => k)
     : [];
   const uniiKeywords = filters.unii
-    ? filters.unii.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    ? filters.unii.split(/[;；]/).map(k => k.trim()).filter(k => k)
     : [];
 
   filteredData = allData.filter((item) => {

@@ -63,9 +63,9 @@ function performSearch() {
   if (!keyword) {
     filteredPdfList = allPdfList;
   } else {
-    // 解析逗号分隔的批量搜索
+    // 解析分号分隔的批量搜索
     const keywords = keyword
-      .split(/[,，]/)
+      .split(/[;；]/)
       .map(k => k.trim())
       .filter(k => k);
     
