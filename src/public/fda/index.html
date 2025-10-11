@@ -9,12 +9,18 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="IIR OCOMM" />
-    <meta name="theme-color" content="#1c2321" />
+    <meta name="theme-color" content="#1a73e8" />
     <meta
       name="description"
       content="FDA非活性成分数据库检索系统，支持中英文搜索，移动端友好" />
+    <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
     <title>IIR OCOMM - 非活性成分数据检索系统</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/common/styles/main.css?v=1.1.1" />
+    <!-- SheetJS库用于Excel导出 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- 添加触摸图标 -->
     <link
       rel="apple-touch-icon"
@@ -26,6 +32,11 @@
       <header>
         <h1>IIR OCOMM - 非活性成分数据检索系统</h1>
         <p class="subtitle">Inactive Ingredient Database Search System</p>
+        <div style="margin-top: 16px;">
+          <a href="/handbook.html" class="btn-secondary" style="display: inline-block; text-decoration: none; padding: 8px 20px; font-size: 14px;">
+            📖 药用辅料手册检索
+          </a>
+        </div>
       </header>
 
       <div
@@ -40,14 +51,14 @@
               <input
                 type="text"
                 id="ingredient-search"
-                placeholder="输入成分名称进行搜索..."
+                placeholder="支持逗号分隔批量搜索..."
                 aria-describedby="ingredient-help"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false" />
               <div id="ingredient-help" class="sr-only">
-                支持中英文搜索，输入部分名称即可匹配
+                支持中英文搜索，支持逗号分隔批量搜索，如：阿司匹林,布洛芬
               </div>
             </div>
             <div class="search-field">
@@ -59,9 +70,6 @@
                 选择特定的给药途径进行筛选
               </div>
             </div>
-          </div>
-
-          <div class="search-row">
             <div class="search-field">
               <label for="dosage-form-search">剂型 (DOSAGE_FORM):</label>
               <select id="dosage-form-search" aria-describedby="dosage-help">
@@ -76,32 +84,29 @@
               <input
                 type="text"
                 id="cas-search"
-                placeholder="输入CAS号..."
+                placeholder="支持逗号分隔批量搜索..."
                 aria-describedby="cas-help"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false" />
               <div id="cas-help" class="sr-only">
-                输入化学文摘社注册号进行精确搜索
+                支持逗号分隔批量搜索，如：50-78-2,298-46-4
               </div>
             </div>
-          </div>
-
-          <div class="search-row">
             <div class="search-field">
               <label for="unii-search">UNII:</label>
               <input
                 type="text"
                 id="unii-search"
-                placeholder="输入UNII..."
+                placeholder="支持逗号分隔批量搜索..."
                 aria-describedby="unii-help"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false" />
               <div id="unii-help" class="sr-only">
-                输入唯一成分标识符进行精确搜索
+                支持逗号分隔批量搜索，如：ABC123,DEF456
               </div>
             </div>
             <div class="search-actions">
@@ -117,26 +122,29 @@
                 aria-describedby="reset-btn-help">
                 重置
               </button>
-              <div class="cache-actions">
-                <button
-                  id="refresh-cache-btn"
-                  class="btn-secondary"
-                  aria-describedby="refresh-cache-help">
-                  刷新缓存
-                </button>
-                <button
-                  id="cache-info-btn"
-                  class="btn-secondary"
-                  aria-describedby="cache-info-help">
-                  缓存信息
-                </button>
-              </div>
               <div id="search-btn-help" class="sr-only">
                 执行搜索操作，支持回车键快捷搜索
               </div>
               <div id="reset-btn-help" class="sr-only">
                 清空所有搜索条件并显示全部数据
               </div>
+            </div>
+          </div>
+
+          <div class="search-row cache-row">
+            <div class="cache-actions">
+              <button
+                id="refresh-cache-btn"
+                class="btn-secondary btn-small"
+                aria-describedby="refresh-cache-help">
+                刷新缓存
+              </button>
+              <button
+                id="cache-info-btn"
+                class="btn-secondary btn-small"
+                aria-describedby="cache-info-help">
+                缓存信息
+              </button>
               <div id="refresh-cache-help" class="sr-only">
                 手动刷新数据缓存，获取最新数据
               </div>
@@ -159,6 +167,18 @@
             <span id="results-count" aria-live="polite" aria-atomic="true"
               >共 0 条记录</span
             >
+            <button
+              id="download-btn"
+              class="btn-download"
+              aria-label="下载结果为Excel文件"
+              title="将当前搜索结果导出为Excel文件">
+              <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              下载结果
+            </button>
             <div class="pagination-info">
               <span id="page-info" aria-live="polite" aria-atomic="true"
                 >第 1 页，共 1 页</span
@@ -226,6 +246,7 @@
     <!-- 提示框 -->
     <div id="tooltip" class="tooltip" style="display: none"></div>
 
-    <script src="script.js"></script>
+    <script src="/fda/app.js?v=1.1.1"></script>
   </body>
 </html>
+

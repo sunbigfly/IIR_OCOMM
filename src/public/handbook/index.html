@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="药用辅料手册" />
+    <meta name="theme-color" content="#1a73e8" />
+    <meta
+      name="description"
+      content="药用辅料手册检索系统，支持英文搜索，提供中英文双语PDF" />
+    <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
+    <title>药用辅料手册检索 - Pharmaceutical Excipient Handbook</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/common/styles/main.css?v=1.1.1" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>药用辅料手册检索</h1>
+        <p class="subtitle">Pharmaceutical Excipient Handbook Search</p>
+      </header>
+
+      <div class="search-section" role="search" aria-labelledby="search-heading">
+        <h2 id="search-heading">文档检索</h2>
+        <div class="search-form">
+          <div class="search-row">
+            <div class="search-field" style="flex: 1; max-width: 600px;">
+              <label for="handbook-search">关键词搜索 (支持英文):</label>
+              <input
+                type="text"
+                id="handbook-search"
+                placeholder="输入英文关键词，如：Contents, Preface, Acacia..."
+                aria-describedby="handbook-help"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false" />
+              <div id="handbook-help" class="sr-only">
+                输入英文关键词搜索文档，支持模糊匹配
+              </div>
+            </div>
+            <div class="search-actions">
+              <button
+                id="search-btn"
+                class="btn-primary"
+                aria-describedby="search-btn-help">
+                搜索
+              </button>
+              <button
+                id="reset-btn"
+                class="btn-secondary"
+                aria-describedby="reset-btn-help">
+                重置
+              </button>
+              <div id="search-btn-help" class="sr-only">
+                执行搜索操作，支持回车键快捷搜索
+              </div>
+              <div id="reset-btn-help" class="sr-only">
+                清空搜索条件并显示全部文档
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="results-section"
+        role="region"
+        aria-labelledby="results-heading"
+        aria-live="polite">
+        <div class="results-header">
+          <h2 id="results-heading">搜索结果</h2>
+          <div class="results-info">
+            <span id="results-count" aria-live="polite" aria-atomic="true">共 0 条文档</span>
+          </div>
+        </div>
+
+        <div class="handbook-list" id="handbook-list">
+          <!-- 文档列表将通过JavaScript动态加载 -->
+        </div>
+      </div>
+
+      <div class="loading" id="loading" style="display: none">
+        <div class="spinner"></div>
+        <p>正在加载文档列表...</p>
+      </div>
+
+      <!-- 返回首页按钮 -->
+      <div style="text-align: center; margin-top: 30px; padding-bottom: 30px;">
+        <a href="/" class="btn-secondary" style="display: inline-block; text-decoration: none; padding: 10px 24px;">
+          ← 返回首页
+        </a>
+      </div>
+    </div>
+
+    <script src="/handbook/app.js?v=1.1.1"></script>
+  </body>
+</html>
+

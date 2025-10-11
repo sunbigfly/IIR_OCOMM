@@ -25,6 +25,7 @@ const elements = {
   resetBtn: document.getElementById("reset-btn"),
   refreshCacheBtn: document.getElementById("refresh-cache-btn"),
   cacheInfoBtn: document.getElementById("cache-info-btn"),
+  downloadBtn: document.getElementById("download-btn"),
   resultsCount: document.getElementById("results-count"),
   pageInfo: document.getElementById("page-info"),
   prevPageBtn: document.getElementById("prev-page"),
@@ -171,7 +172,7 @@ async function loadData() {
     console.log("从网络加载数据...");
     showCacheStatus("downloading");
 
-    const response = await fetch("data.json", {
+    const response = await fetch("/fda/data/data.json", {
       cache: "no-cache", // 确保获取最新数据
       headers: {
         "Cache-Control": "no-cache",
@@ -213,7 +214,7 @@ async function loadData() {
 // 加载字段映射 - 直接从网络加载
 async function loadFieldMapping() {
   try {
-    const response = await fetch("field_mapping.json");
+    const response = await fetch("/common/data/field_mapping.json");
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -301,6 +302,7 @@ function bindEvents() {
   elements.resetBtn.addEventListener("click", resetSearch);
   elements.refreshCacheBtn.addEventListener("click", refreshCache);
   elements.cacheInfoBtn.addEventListener("click", showCacheInfo);
+  elements.downloadBtn.addEventListener("click", downloadResults);
   elements.prevPageBtn.addEventListener("click", () => changePage(-1));
   elements.nextPageBtn.addEventListener("click", () => changePage(1));
 
@@ -406,17 +408,30 @@ function performSearch() {
     unii: elements.uniiSearch.value.trim().toLowerCase(),
   };
 
+  // 解析逗号分隔的批量搜索
+  const ingredientKeywords = filters.ingredient
+    ? filters.ingredient.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    : [];
+  const casKeywords = filters.cas
+    ? filters.cas.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    : [];
+  const uniiKeywords = filters.unii
+    ? filters.unii.split(/[,，]/).map(k => k.trim()).filter(k => k)
+    : [];
+
   filteredData = allData.filter((item) => {
-    // 成分名称搜索（支持中英文）
-    if (filters.ingredient) {
+    // 成分名称搜索（支持中英文，支持批量）
+    if (ingredientKeywords.length > 0) {
       const ingredientName = (item.INGREDIENT_NAME || "").toLowerCase();
       const ingredientNameCn = (
         item["INGREDIENT_NAME(中文名)"] || ""
       ).toLowerCase();
-      if (
-        !ingredientName.includes(filters.ingredient) &&
-        !ingredientNameCn.includes(filters.ingredient)
-      ) {
+      
+      const matched = ingredientKeywords.some(keyword => 
+        ingredientName.includes(keyword) || ingredientNameCn.includes(keyword)
+      );
+      
+      if (!matched) {
         return false;
       }
     }
@@ -431,18 +446,22 @@ function performSearch() {
       return false;
     }
 
-    // CAS号搜索
-    if (filters.cas) {
+    // CAS号搜索（支持批量）
+    if (casKeywords.length > 0) {
       const casNumber = String(item.CAS_NUMBER || "");
-      if (!casNumber.includes(filters.cas)) {
+      const matched = casKeywords.some(keyword => casNumber.includes(keyword));
+      
+      if (!matched) {
         return false;
       }
     }
 
-    // UNII搜索
-    if (filters.unii) {
+    // UNII搜索（支持批量）
+    if (uniiKeywords.length > 0) {
       const unii = (item.UNII || "").toLowerCase();
-      if (!unii.includes(filters.unii)) {
+      const matched = uniiKeywords.some(keyword => unii.includes(keyword));
+      
+      if (!matched) {
         return false;
       }
     }
@@ -1025,6 +1044,79 @@ function showCacheInfo() {
 • 过期时间：${expiry}`;
 
   alert(message);
+}
+
+// 下载搜索结果为Excel文件
+function downloadResults() {
+  if (!filteredData || filteredData.length === 0) {
+    alert("没有可下载的数据");
+    return;
+  }
+
+  try {
+    // 准备导出数据
+    const exportData = filteredData.map((item) => ({
+      "成分名称": item.INGREDIENT_NAME || "",
+      "成分名称(中文)": item["INGREDIENT_NAME(中文名)"] || "",
+      "给药途径": item.ROUTE || "",
+      "给药途径(中文)": item["ROUTE(中文名)"] || "",
+      "剂型": item.DOSAGE_FORM || "",
+      "剂型(中文)": item["DOSAGE_FORM(中文名)"] || "",
+      "CAS号": item.CAS_NUMBER || "",
+      "UNII": item.UNII || "",
+      "效价量": item.POTENCY_AMOUNT || "",
+      "效价单位": item.POTENCY_UNIT || "",
+      "最大日暴露量": item.MAXIMUM_DAILY_EXPOSURE || "",
+      "最大日暴露量单位": item.MAXIMUM_DAILY_EXPOSURE_UNIT || "",
+      "记录更新时间": item.RECORD_UPDATED || "",
+    }));
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // 设置列宽
+    const colWidths = [
+      { wch: 30 }, // 成分名称
+      { wch: 30 }, // 成分名称(中文)
+      { wch: 15 }, // 给药途径
+      { wch: 15 }, // 给药途径(中文)
+      { wch: 20 }, // 剂型
+      { wch: 20 }, // 剂型(中文)
+      { wch: 15 }, // CAS号
+      { wch: 12 }, // UNII
+      { wch: 12 }, // 效价量
+      { wch: 12 }, // 效价单位
+      { wch: 15 }, // 最大日暴露量
+      { wch: 18 }, // 最大日暴露量单位
+      { wch: 18 }, // 记录更新时间
+    ];
+    ws["!cols"] = colWidths;
+
+    // 添加工作表到工作簿
+    XLSX.utils.book_append_sheet(wb, ws, "搜索结果");
+
+    // 生成文件名（包含时间戳）
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    const filename = `IIR_OCOMM_搜索结果_${timestamp}.xlsx`;
+
+    // 下载文件
+    XLSX.writeFile(wb, filename);
+
+    // 提示用户
+    console.log(`已导出 ${filteredData.length} 条记录到 ${filename}`);
+    
+    // 移动端友好提示
+    if (isMobileDevice()) {
+      announceToScreenReader(`已导出 ${filteredData.length} 条记录`);
+    }
+  } catch (error) {
+    console.error("导出Excel失败:", error);
+    alert("导出Excel失败，请稍后重试");
+  }
 }
 
 // 格式化数值

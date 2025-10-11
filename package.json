@@ -1,7 +1,7 @@
 {
   "name": "iir-ocomm",
-  "version": "1.0.0",
-  "description": "IIR OCOMM - 非活性成分数据检索系统",
+  "version": "2.0.0",
+  "description": "IIR OCOMM - FDA非活性成分数据库检索系统 + 药用辅料手册检索系统",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,11 +12,18 @@
     "ocomm",
     "inactive-ingredients",
     "database",
-    "search"
+    "search",
+    "fda",
+    "pharmaceutical",
+    "excipient",
+    "handbook"
   ],
   "author": "",
   "license": "MIT",
   "engines": {
     "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   }
 }

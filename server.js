@@ -1,205 +1,88 @@
 #!/usr/bin/env node
 
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-const url = require("url");
+/**
+ * IIR OCOMM 服务器入口文件
+ * FDA非活性成分数据库检索系统 + 药用辅料手册检索系统
+ */
 
-// 配置
-const HTTP_PORT = process.env.PORT || 8000;
-const WEB_DIR = "web_app";
+const os = require('os');
+const createApp = require('./src/server/app');
+const config = require('./src/server/config');
+const logger = require('./src/server/utils/logger');
 
-// MIME 类型映射
-const mimeTypes = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-};
+// 创建Express应用
+const app = createApp();
 
-// 获取文件的 MIME 类型
-function getMimeType(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  return mimeTypes[ext] || "application/octet-stream";
-}
-
-// 请求处理函数
-function handleRequest(req, res) {
-  // 解析 URL
-  const parsedUrl = url.parse(req.url);
-  let pathname = parsedUrl.pathname;
-
-  // 默认页面
-  if (pathname === "/") {
-    pathname = "/index.html";
-  }
-
-  // 构建文件路径
-  const filePath = path.join(__dirname, WEB_DIR, pathname);
-
-  // 检查文件是否存在
-  fs.access(filePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      // 文件不存在，返回 404
-      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>404 - 页面未找到</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            h1 { color: #e74c3c; }
-          </style>
-        </head>
-        <body>
-          <h1>404 - 页面未找到</h1>
-          <p>请求的文件 <code>${pathname}</code> 不存在</p>
-          <a href="/">返回首页</a>
-        </body>
-        </html>
-      `);
-      return;
-    }
-
-    // 读取文件
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        // 读取错误，返回 500
-        res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <title>500 - 服务器错误</title>
-            <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-              h1 { color: #e74c3c; }
-            </style>
-          </head>
-          <body>
-            <h1>500 - 服务器错误</h1>
-            <p>读取文件时发生错误</p>
-            <a href="/">返回首页</a>
-          </body>
-          </html>
-        `);
-        return;
-      }
-
-      // 设置响应头
-      const mimeType = getMimeType(filePath);
-      res.writeHead(200, {
-        "Content-Type": mimeType,
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Cache-Control": pathname.endsWith(".json")
-          ? "no-cache"
-          : "public, max-age=3600",
-      });
-
-      // 发送文件内容
-      res.end(data);
-    });
-  });
-}
-
-// 创建HTTP服务器
-const httpServer = http.createServer(handleRequest);
-
-// 启动HTTP服务器
-httpServer.listen(HTTP_PORT, "0.0.0.0", () => {
+// 启动服务器
+const server = app.listen(config.port, config.host, () => {
   // 获取本机IP地址
-  const os = require("os");
   const networkInterfaces = os.networkInterfaces();
-  let localIP = "localhost";
+  let localIP = 'localhost';
 
   // 查找第一个非回环的IPv4地址
   for (const interfaceName in networkInterfaces) {
     const interfaces = networkInterfaces[interfaceName];
     for (const iface of interfaces) {
-      if (iface.family === "IPv4" && !iface.internal) {
+      if (iface.family === 'IPv4' && !iface.internal) {
         localIP = iface.address;
         break;
       }
     }
-    if (localIP !== "localhost") break;
+    if (localIP !== 'localhost') break;
   }
 
-  console.log(`🚀 IIR OCOMM 服务器启动成功!`);
-  console.log(`📍 HTTP本地访问: http://localhost:${HTTP_PORT}`);
-  console.log(`🌐 HTTP局域网访问: http://${localIP}:${HTTP_PORT}`);
-
-  console.log(`📁 服务目录: ${path.resolve(WEB_DIR)}`);
-  console.log(`⏹️  按 Ctrl+C 停止服务器`);
+  console.log('\n🚀 IIR OCOMM 服务器启动成功!\n');
+  console.log('📍 访问地址:');
+  console.log(`   本地:     http://localhost:${config.port}`);
+  console.log(`   局域网:   http://${localIP}:${config.port}`);
+  console.log('\n📖 应用列表:');
+  console.log(`   FDA检索:  http://localhost:${config.port}/`);
+  console.log(`   辅料手册: http://localhost:${config.port}/handbook.html`);
+  console.log('\n⏹️  按 Ctrl+C 停止服务器\n');
 
   // 尝试自动打开浏览器
-  const open = (url) => {
-    const { exec } = require("child_process");
-    const platform = process.platform;
+  const { exec } = require('child_process');
+  const platform = process.platform;
 
-    let command;
-    if (platform === "darwin") {
-      command = `open ${url}`;
-    } else if (platform === "win32") {
-      command = `start ${url}`;
-    } else {
-      command = `xdg-open ${url}`;
-    }
+  let command;
+  if (platform === 'darwin') {
+    command = `open http://localhost:${config.port}`;
+  } else if (platform === 'win32') {
+    command = `start http://localhost:${config.port}`;
+  } else {
+    command = `xdg-open http://localhost:${config.port}`;
+  }
 
+  setTimeout(() => {
     exec(command, (error) => {
       if (error) {
-        console.log(`💡 请手动在浏览器中打开: http://localhost:${HTTP_PORT}`);
+        logger.info(`请手动在浏览器中打开: http://localhost:${config.port}`);
       }
     });
-  };
-
-  // 延迟 1 秒后打开浏览器
-  setTimeout(() => {
-    open(`http://localhost:${HTTP_PORT}`);
   }, 1000);
 });
 
 // 优雅关闭函数
 function gracefulShutdown(signal) {
-  console.log(`\n🛑 收到 ${signal} 信号，正在停止服务器...`);
+  logger.info(`收到 ${signal} 信号，正在停止服务器...`);
 
   const timeout = setTimeout(() => {
-    console.log("⚠️ 强制退出服务器");
+    logger.warn('强制退出服务器');
     process.exit(1);
-  }, 25000); // 25秒强制退出，比systemd的30秒少一点
+  }, 25000);
 
-  let httpClosed = false;
-
-  const checkAllClosed = () => {
-    if (httpClosed) {
-      clearTimeout(timeout);
-      console.log("✅ 服务器已停止");
+  server.close((err) => {
+    clearTimeout(timeout);
+    if (err) {
+      logger.error('服务器关闭错误:', err);
+      process.exit(1);
+    } else {
+      logger.success('服务器已停止');
       process.exit(0);
     }
-  };
-
-  // 关闭HTTP服务器
-  httpServer.close((err) => {
-    if (err) {
-      console.error("❌ HTTP服务器关闭错误:", err);
-    } else {
-      console.log("✅ HTTP服务器已关闭");
-    }
-    httpClosed = true;
-    checkAllClosed();
   });
 }
 
 // 注册信号处理
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
