@@ -14,21 +14,27 @@
   --google-red: #d93025;
   --google-green: #1e8e3e;
   
-  /* 统一尺寸 - 按钮层级体系 */
+  /* 统一尺寸 */
   --input-height: 44px;
-  --button-height-primary: 44px;    /* 一级：主操作按钮 */
-  --button-height-secondary: 40px;  /* 二级：次要操作按钮 */
-  --button-height-tertiary: 36px;   /* 三级：辅助控件 */
+  --button-height-primary: 44px;
+  --button-height-tertiary: 36px;
   --input-padding: 10px 14px;
   --button-padding: 0 24px;
   --font-size-base: 14px;
   --font-size-small: 13px;
+  --gap-small: 6px;
+  --gap-medium: 8px;
+  --gap-large: 10px;
   
   /* 边框和阴影 */
   --border-radius: 8px;
   --border-width: 1px;
   --box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
   --box-shadow-hover: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  
+  /* 动画 */
+  --transition-normal: all 0.2s ease;
+  --transition-slow: all 0.3s ease;
 }
 
 /* 基础样式 */
@@ -46,8 +52,6 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-overflow-scrolling: touch;
-  -webkit-text-size-adjust: 100%;
 }
 
 /* ============================================
@@ -79,7 +83,7 @@ body {
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-medium);
 }
 
 .nav-brand:hover {
@@ -98,7 +102,7 @@ body {
   text-decoration: none;
   font-size: 14px;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
   display: inline-block;
 }
 
@@ -111,26 +115,6 @@ body {
   background: var(--google-blue);
   color: var(--google-white);
   font-weight: 500;
-}
-
-/* 移动端导航 */
-@media (max-width: 768px) {
-  .nav-container {
-    height: 48px;
-  }
-  
-  .nav-brand {
-    font-size: 16px;
-  }
-  
-  .nav-links {
-    gap: 2px;
-  }
-  
-  .nav-link {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
 }
 
 /* ============================================
@@ -152,18 +136,18 @@ body {
 .cache-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-medium);
 }
 
 .status-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap-small);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: var(--transition-slow);
 }
 
 .status-dot {
@@ -173,42 +157,32 @@ body {
   display: inline-block;
 }
 
-.status-cached {
+.status-cached { 
   background: rgba(30, 142, 62, 0.1);
   color: var(--google-green);
 }
+.status-cached .status-dot { background: var(--google-green); }
 
-.status-cached .status-dot {
-  background: var(--google-green);
-}
-
-.status-downloading {
+.status-downloading { 
   background: rgba(26, 115, 232, 0.1);
   color: var(--google-blue);
 }
-
-.status-downloading .status-dot {
+.status-downloading .status-dot { 
   background: var(--google-blue);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.status-offline {
+.status-offline { 
   background: rgba(217, 48, 37, 0.1);
   color: var(--google-red);
 }
+.status-offline .status-dot { background: var(--google-red); }
 
-.status-offline .status-dot {
-  background: var(--google-red);
-}
-
-.status-network {
+.status-network { 
   background: rgba(128, 134, 139, 0.1);
   color: var(--google-grey-700);
 }
-
-.status-network .status-dot {
-  background: var(--google-grey-700);
-}
+.status-network .status-dot { background: var(--google-grey-700); }
 
 @keyframes pulse {
   0%, 100% {
@@ -223,7 +197,7 @@ body {
 
 .cache-actions-inline {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-medium);
   align-items: center;
 }
 
@@ -242,26 +216,11 @@ body {
   border-color: var(--google-grey-400);
 }
 
-@media (max-width: 768px) {
-  .cache-status-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 8px 16px;
-  }
-  
-  .cache-actions-inline {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
 .container {
   max-width: 100%;
   width: 100%;
   margin: 0;
   padding: 16px 24px;
-  min-width: 320px;
 }
 
 /* 头部样式 */
@@ -305,7 +264,7 @@ header h1 {
 .search-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--gap-large);
 }
 
 /* ============================================
@@ -323,7 +282,7 @@ header h1 {
 .search-field-primary {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap-small);
 }
 
 .search-field-primary label {
@@ -340,8 +299,7 @@ header h1 {
   border: var(--border-width) solid var(--google-grey-300);
   border-radius: var(--border-radius);
   background: var(--google-white);
-  transition: all 0.2s ease;
-  box-sizing: border-box;
+  transition: var(--transition-normal);
 }
 
 .search-field-primary input:hover {
@@ -360,7 +318,7 @@ header h1 {
 
 .search-actions-primary {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-medium);
   align-items: center;
 }
 
@@ -383,12 +341,12 @@ header h1 {
   user-select: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-medium);
   font-size: 14px;
   font-weight: 500;
   color: var(--google-grey-900);
   list-style: none;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
 }
 
 .advanced-search-toggle::-webkit-details-marker {
@@ -434,39 +392,10 @@ header h1 {
   gap: 16px;
 }
 
-/* 响应式：移动端 */
-@media (max-width: 768px) {
-  .primary-search-area {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-field-primary {
-    min-width: 100%;
-  }
-  
-  .search-actions-primary {
-    width: 100%;
-  }
-  
-  .search-actions-primary .btn-primary,
-  .search-actions-primary .btn-secondary {
-    flex: 1;
-  }
-  
-  .advanced-fields {
-    grid-template-columns: 1fr;
-  }
-  
-  .toggle-hint {
-    display: none;
-  }
-}
-
 .search-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--gap-medium);
   align-items: flex-end;
 }
 
@@ -476,7 +405,7 @@ header h1 {
 .search-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap-small);
   flex: 0 1 200px;
   min-width: 160px;
 }
@@ -495,10 +424,9 @@ header h1 {
   font-size: var(--font-size-base);
   background: var(--google-white);
   color: var(--google-grey-900);
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
   font-family: inherit;
   height: var(--input-height);
-  box-sizing: border-box;
 }
 
 .search-field input:hover,
@@ -520,7 +448,7 @@ header h1 {
 /* 按钮样式 */
 .search-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--gap-large);
   align-items: flex-end;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -533,35 +461,12 @@ header h1 {
 
 .cache-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--gap-large);
   align-items: center;
   flex-wrap: wrap;
 }
 
-/* ============================================
-   统一按钮样式系统 - 三级层次
-   ============================================
-   
-   按钮高度层级体系：
-   
-   一级（44px）- 搜索区域：页面核心操作
-   - .btn-primary: 搜索、确认等触发数据获取的主要操作
-   - .btn-secondary: 重置、取消等主操作的配套按钮
-   
-   三级（36px）- 结果区域：对已有数据的所有操作
-   - .btn-download: 下载结果
-   - .btn-page: 上一页、下一页（分页浏览）
-   - .btn-page-jump: 跳转按钮
-   - .page-jump-input: 页码输入框
-   - .items-per-page-select: 每页显示下拉框
-   
-   特殊（32px）- 状态栏小按钮
-   - .btn-cache-action: 缓存状态栏内的操作按钮
-   
-   注：二级（40px）保留变量但本项目暂不使用
-   
-   ============================================ */
-/* 基础按钮样式（所有标准按钮共享） */
+/* 统一按钮样式 - 44px主按钮, 36px次按钮 */
 .btn-primary,
 .btn-secondary,
 .btn-page,
@@ -573,17 +478,15 @@ header h1 {
   font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
   font-family: inherit;
   white-space: nowrap;
-  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--gap-small);
 }
 
-/* 一级按钮：页面核心操作（搜索、重置） */
 .btn-primary,
 .btn-secondary {
   height: var(--button-height-primary);
@@ -593,18 +496,19 @@ header h1 {
   background: var(--google-blue);
   color: var(--google-white);
   border-color: var(--google-blue);
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3);
+  box-shadow: var(--box-shadow);
 }
 
 .btn-primary:hover {
   background: var(--google-blue-hover);
   border-color: var(--google-blue-hover);
-  box-shadow: 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  box-shadow: var(--box-shadow-hover);
 }
 
 .btn-primary:active {
-  background: #1557b0;
-  border-color: #1557b0;
+  background: var(--google-blue-hover);
+  border-color: var(--google-blue-hover);
+  filter: brightness(0.9);
 }
 
 .btn-secondary {
@@ -618,13 +522,11 @@ header h1 {
   border-color: var(--google-grey-600);
 }
 
-/* 三级按钮：结果区域的所有操作（统一高度） */
 .btn-page,
 .btn-download {
   height: var(--button-height-tertiary);
 }
 
-/* 跳转按钮：三级按钮，蓝色强调（只覆盖差异化属性） */
 .btn-page-jump {
   height: var(--button-height-tertiary);
   padding: 0 16px;
@@ -689,8 +591,6 @@ header h1 {
   height: 16px;
 }
 
-/* 旧的缓存状态样式已删除 - 使用新的status-indicator系统 */
-
 /* 结果区域 */
 .results-section {
   background: var(--google-white);
@@ -742,22 +642,20 @@ header h1 {
 
 .pagination-controls {
   display: flex;
-  gap: 8px;
+  gap: var(--gap-medium);
   align-items: center;
   flex-wrap: wrap;
 }
 
-/* 三级控件：输入框和下拉框 */
 .page-jump-input,
 .items-per-page-select {
   height: var(--button-height-tertiary);
 }
 
-/* 页面跳转控件 */
 .page-jump-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap-small);
   margin-left: 4px;
 }
 
@@ -773,7 +671,7 @@ header h1 {
   border-radius: var(--border-radius);
   font-size: var(--font-size-base);
   text-align: center;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
 }
 
 .page-jump-input:focus {
@@ -782,11 +680,10 @@ header h1 {
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
 }
 
-/* 每页行数控件 */
 .items-per-page-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap-small);
   margin-left: 8px;
 }
 
@@ -802,7 +699,7 @@ header h1 {
   font-size: var(--font-size-base);
   background: var(--google-white);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
 }
 
 .items-per-page-select:focus {
@@ -815,7 +712,6 @@ header h1 {
   border-color: var(--google-grey-600);
 }
 
-/* 表格样式 */
 .table-container {
   overflow-x: visible;
   max-height: 600px;
@@ -875,15 +771,13 @@ header h1 {
   background-color: var(--google-grey-50);
 }
 
-/* 针对特定列的优化 - 极致紧凑 */
-/* 第1列：成分名称 */
+/* 表格列宽 - 用语义化类名代替魔法数字 */
 #results-table td:first-child,
 #results-table th:first-child {
   min-width: 160px;
   max-width: 220px;
 }
 
-/* 第2-3列：给药途径/剂型 */
 #results-table td:nth-child(2),
 #results-table th:nth-child(2),
 #results-table td:nth-child(3),
@@ -892,43 +786,30 @@ header h1 {
   max-width: 150px;
 }
 
-/* 第4-5列：CAS/UNII */
-#results-table td:nth-child(4),
-#results-table th:nth-child(4),
-#results-table td:nth-child(5),
-#results-table th:nth-child(5) {
+#results-table td:nth-child(n+4):nth-child(-n+5),
+#results-table th:nth-child(n+4):nth-child(-n+5) {
   min-width: 85px;
   max-width: 120px;
 }
 
-/* 第6-9列：效价/暴露量（数字列） */
-#results-table td:nth-child(6),
-#results-table th:nth-child(6),
-#results-table td:nth-child(7),
-#results-table th:nth-child(7),
-#results-table td:nth-child(8),
-#results-table th:nth-child(8),
-#results-table td:nth-child(9),
-#results-table th:nth-child(9) {
+#results-table td:nth-child(n+6):nth-child(-n+9),
+#results-table th:nth-child(n+6):nth-child(-n+9) {
   min-width: 70px;
   max-width: 100px;
 }
 
-/* 第10列：更新时间 */
-#results-table td:nth-child(10),
-#results-table th:nth-child(10) {
+#results-table td:last-child,
+#results-table th:last-child {
   min-width: 110px;
   max-width: 130px;
 }
 
-/* 特殊单元格 */
 .route-cell,
 .dosage-form-cell {
   cursor: help;
   position: relative;
 }
 
-/* 提示框 */
 .tooltip {
   position: absolute;
   background: var(--google-grey-900);
@@ -952,7 +833,6 @@ header h1 {
   border-color: var(--google-grey-900) transparent transparent transparent;
 }
 
-/* 加载动画 */
 .loading {
   text-align: center;
   padding: 60px 20px;
@@ -977,7 +857,6 @@ header h1 {
   }
 }
 
-/* 滚动条样式 */
 .table-container::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -996,7 +875,6 @@ header h1 {
   background: var(--google-grey-600);
 }
 
-/* 屏幕阅读器专用 */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1007,265 +885,6 @@ header h1 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* 平板设备响应式 */
-@media (max-width: 768px) {
-  .container {
-    padding: 24px 16px;
-  }
-
-  header {
-    padding: 32px 16px 16px;
-    margin-bottom: 32px;
-  }
-
-  header h1 {
-    font-size: 28px;
-  }
-
-  .search-section {
-    padding: 24px 20px;
-  }
-
-  .search-row {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .search-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .search-actions .btn-primary,
-  .search-actions .btn-secondary {
-    width: 100%;
-  }
-
-  .cache-row {
-    grid-template-columns: 1fr;
-  }
-
-  .cache-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .cache-actions .btn-small {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .results-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .results-info {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .btn-download {
-    width: 100%;
-    padding: 12px 20px;
-    font-size: 15px;
-  }
-
-  .pagination-info {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  #results-table {
-    font-size: 12px;
-  }
-
-  #results-table th,
-  #results-table td {
-    padding: 8px;
-  }
-
-  .table-container {
-    overflow-x: auto;
-  }
-}
-
-/* 手机设备响应式 */
-@media (max-width: 480px) {
-  .container {
-    padding: 16px 12px;
-  }
-
-  header {
-    padding: 24px 12px 12px;
-  }
-
-  header h1 {
-    font-size: 24px;
-    line-height: 1.3;
-  }
-
-  .subtitle {
-    font-size: 13px;
-  }
-
-  .search-section {
-    padding: 20px 16px;
-    margin-bottom: 24px;
-  }
-
-  .search-section h2 {
-    font-size: 18px;
-  }
-
-  .search-field input,
-  .search-field select {
-    font-size: 16px;
-    padding: 14px 16px;
-  }
-
-  .btn-primary,
-  .btn-secondary {
-    padding: 14px 24px;
-    font-size: 16px;
-  }
-
-  .table-container {
-    display: none;
-  }
-
-  /* 移动端卡片布局 */
-  .mobile-cards {
-    display: block;
-    padding: 16px;
-  }
-
-  .mobile-card {
-    background: var(--google-white);
-    border: 1px solid var(--google-grey-200);
-    border-radius: var(--border-radius);
-    padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.1);
-  }
-
-  .mobile-card-header {
-    font-weight: 500;
-    color: var(--google-grey-900);
-    font-size: 16px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--google-grey-200);
-  }
-
-  .mobile-card-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    font-size: 14px;
-  }
-
-  .mobile-card-label {
-    font-weight: 500;
-    color: var(--google-grey-700);
-    flex: 0 0 45%;
-    font-size: 13px;
-  }
-
-  .mobile-card-value {
-    flex: 1;
-    text-align: right;
-    color: var(--google-grey-900);
-    word-break: break-word;
-    font-size: 13px;
-  }
-
-  .pagination-controls {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    width: 100%;
-  }
-
-  .pagination-controls button {
-    min-height: 44px;
-    padding: 12px 20px;
-  }
-
-  .page-jump-controls,
-  .items-per-page-controls {
-    width: 100%;
-    justify-content: space-between;
-    margin-left: 0;
-  }
-
-  .page-jump-input {
-    width: 80px;
-    height: 44px;
-    font-size: 16px;
-  }
-
-  .btn-page-jump {
-    height: 44px;
-    padding: 0 20px;
-    font-size: 14px;
-  }
-
-  .items-per-page-select {
-    height: 44px;
-    font-size: 16px;
-    flex: 1;
-    max-width: 120px;
-  }
-}
-
-/* 默认隐藏移动端卡片 */
-.mobile-cards {
-  display: none;
-}
-
-/* 触摸设备优化 */
-@media (hover: none) and (pointer: coarse) {
-  .search-field input:focus,
-  .search-field select:focus {
-    box-shadow: 0 0 0 2px var(--google-blue);
-  }
-
-  .btn-primary:active,
-  .btn-secondary:active {
-    transform: scale(0.98);
-  }
-
-  input,
-  select,
-  button {
-    touch-action: manipulation;
-  }
-}
-
-/* 横屏模式优化 */
-@media screen and (orientation: landscape) and (max-height: 500px) {
-  header {
-    padding: 16px;
-    margin-bottom: 16px;
-  }
-
-  header h1 {
-    font-size: 24px;
-  }
-
-  .search-section {
-    padding: 16px;
-  }
-
-  .table-container {
-    max-height: 300px;
-  }
 }
 
 /* ============================================
@@ -1346,7 +965,7 @@ header h1 {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
 }
 
 .modal-close:hover {
@@ -1374,7 +993,6 @@ header h1 {
   gap: 12px;
 }
 
-/* 列设置样式 */
 .column-list {
   display: flex;
   flex-direction: column;
@@ -1428,14 +1046,12 @@ header h1 {
    Handbook页面专属样式
    ============================================ */
 
-/* 文档列表容器 */
 .handbook-list {
   padding: 0;
   max-height: 600px;
   overflow-y: auto;
 }
 
-/* 单个文档项 */
 .handbook-item {
   display: flex;
   justify-content: space-between;
@@ -1453,7 +1069,6 @@ header h1 {
   border-bottom: none;
 }
 
-/* 文档信息区域 */
 .handbook-info {
   display: flex;
   align-items: center;
@@ -1465,8 +1080,8 @@ header h1 {
 .handbook-number {
   font-size: 14px;
   font-weight: 500;
-  color: var(--google-grey-600);
-  font-family: 'Roboto Mono', monospace;
+  color: var(--google-grey-700);
+  font-family: 'Microsoft YaHei', sans-serif;
   flex-shrink: 0;
   min-width: 40px;
 }
@@ -1495,25 +1110,23 @@ header h1 {
   white-space: nowrap;
 }
 
-/* 操作按钮区域 */
 .handbook-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--gap-large);
   flex-shrink: 0;
 }
 
-/* PDF按钮样式 */
 .btn-pdf {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap-small);
   padding: 8px 16px;
   border: 1px solid var(--google-grey-300);
   border-radius: var(--border-radius);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-normal);
   font-family: inherit;
   white-space: nowrap;
   background: var(--google-white);
@@ -1552,7 +1165,6 @@ header h1 {
   border-color: var(--google-grey-300);
 }
 
-/* 空状态 */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -1562,76 +1174,4 @@ header h1 {
 .empty-state p {
   font-size: 15px;
   margin-bottom: 8px;
-}
-
-/* 响应式布局 - 平板 */
-@media (max-width: 768px) {
-  .handbook-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 20px;
-  }
-
-  .handbook-info {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .handbook-number {
-    font-size: 13px;
-  }
-
-  .handbook-names {
-    width: 100%;
-  }
-
-  .handbook-name-en,
-  .handbook-name-zh {
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  .handbook-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .btn-pdf {
-    width: 100%;
-    justify-content: center;
-    padding: 12px 16px;
-    font-size: 14px;
-  }
-}
-
-/* 响应式布局 - 手机 */
-@media (max-width: 480px) {
-  .handbook-list {
-    padding: 0;
-  }
-
-  .handbook-item {
-    padding: 16px;
-  }
-
-  .handbook-number {
-    font-size: 12px;
-    min-width: 35px;
-  }
-
-  .handbook-name-en {
-    font-size: 13px;
-  }
-
-  .handbook-name-zh {
-    font-size: 12px;
-  }
-
-  .btn-pdf {
-    padding: 10px 14px;
-    font-size: 13px;
-  }
 }
