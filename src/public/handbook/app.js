@@ -79,9 +79,9 @@ function performSearch() {
     // 解析分号分隔的批量搜索
     const keywords = parseKeywords(keyword);
     
-    // 模糊搜索：匹配文件名或编号（支持批量）
+    // 模糊搜索：匹配文件名、编号或中文名称（支持批量）
     filteredPdfList = allPdfList.filter(pdf => {
-      const searchText = `${pdf.prefix} ${pdf.name} ${pdf.enFile}`.toLowerCase();
+      const searchText = `${pdf.prefix} ${pdf.name} ${pdf.enFile} ${pdf.chineseName || ''}`.toLowerCase();
       return keywords.some(kw => searchText.includes(kw));
     });
   }
@@ -121,12 +121,16 @@ function renderPdfList() {
 // 创建PDF列表项
 function createPdfItem(pdf) {
   const hasZh = pdf.zhFile !== null;
+  const chineseName = pdf.chineseName || '';
   
   return `
     <div class="handbook-item">
       <div class="handbook-info">
         <div class="handbook-number">${pdf.prefix}</div>
-        <div class="handbook-name">${pdf.name}</div>
+        <div class="handbook-names">
+          <div class="handbook-name-en">${escapeHtml(pdf.name)}</div>
+          ${chineseName ? `<div class="handbook-name-zh">${escapeHtml(chineseName)}</div>` : ''}
+        </div>
       </div>
       <div class="handbook-actions">
         <button 

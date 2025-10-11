@@ -78,12 +78,12 @@ IIR_OCOMM/
 │       │
 │       └── handbook/             # 辅料手册应用
 │           ├── index.html       # 主页面
-│           └── app.js           # 应用逻辑
-│
-├── data/                         # 数据文件目录
-│   └── pdfs/                    # PDF文档
-│       ├── en/                  # 英文PDF（6.5MB+）
-│       └── zh/                  # 中文PDF（357MB+）
+│           ├── app.js           # 应用逻辑
+│           └── data/            # 数据文件
+│               └── pdfs/        # PDF文档
+│                   ├── en/      # 英文PDF（6.5MB+）
+│                   ├── zh/      # 中文PDF（357MB+）
+│                   └── pdf_name_mapping.json  # 文件名映射
 │
 ├── server.js                     # 服务器入口
 ├── package.json                  # 项目配置

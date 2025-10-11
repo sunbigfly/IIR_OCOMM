@@ -561,12 +561,12 @@ header h1 {
    注：二级（40px）保留变量但本项目暂不使用
    
    ============================================ */
-/* 基础按钮样式 */
+/* 基础按钮样式（所有标准按钮共享） */
 .btn-primary,
 .btn-secondary,
 .btn-page,
 .btn-download,
-.btn-cache-action {
+.btn-page-jump {
   padding: var(--button-padding);
   border: var(--border-width) solid transparent;
   border-radius: var(--border-radius);
@@ -620,9 +620,27 @@ header h1 {
 
 /* 三级按钮：结果区域的所有操作（统一高度） */
 .btn-page,
-.btn-download,
+.btn-download {
+  height: var(--button-height-tertiary);
+}
+
+/* 跳转按钮：三级按钮，蓝色强调（只覆盖差异化属性） */
 .btn-page-jump {
   height: var(--button-height-tertiary);
+  padding: 0 16px;
+  background: var(--google-white);
+  color: var(--google-blue);
+  border-color: var(--google-blue);
+  font-size: 13px;
+}
+
+.btn-page-jump:hover {
+  background: var(--google-blue);
+  color: var(--google-white);
+}
+
+.btn-page-jump:active {
+  transform: scale(0.98);
 }
 
 .btn-page {
@@ -762,28 +780,6 @@ header h1 {
   outline: none;
   border-color: var(--google-blue);
   box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
-}
-
-.btn-page-jump {
-  padding: 0 16px;
-  background: var(--google-white);
-  color: var(--google-blue);
-  border: 1px solid var(--google-blue);
-  border-radius: var(--border-radius);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.btn-page-jump:hover {
-  background: var(--google-blue);
-  color: var(--google-white);
-}
-
-.btn-page-jump:active {
-  transform: scale(0.98);
 }
 
 /* 每页行数控件 */
@@ -1475,10 +1471,25 @@ header h1 {
   min-width: 40px;
 }
 
-.handbook-name {
+.handbook-names {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.handbook-name-en {
   font-size: 14px;
   color: var(--google-grey-900);
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.handbook-name-zh {
+  font-size: 13px;
+  color: var(--google-grey-600);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1573,7 +1584,12 @@ header h1 {
     font-size: 13px;
   }
 
-  .handbook-name {
+  .handbook-names {
+    width: 100%;
+  }
+
+  .handbook-name-en,
+  .handbook-name-zh {
     white-space: normal;
     word-break: break-word;
   }
@@ -1606,8 +1622,12 @@ header h1 {
     min-width: 35px;
   }
 
-  .handbook-name {
+  .handbook-name-en {
     font-size: 13px;
+  }
+
+  .handbook-name-zh {
+    font-size: 12px;
   }
 
   .btn-pdf {

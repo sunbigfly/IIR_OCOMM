@@ -9,6 +9,16 @@ const fs = require('fs');
 const path = require('path');
 const config = require('../config');
 
+// 加载中文名称映射
+let chineseNameMapping = {};
+try {
+  if (fs.existsSync(config.pdfMappingPath)) {
+    chineseNameMapping = JSON.parse(fs.readFileSync(config.pdfMappingPath, 'utf-8'));
+  }
+} catch (error) {
+  console.error('加载中文名称映射失败:', error);
+}
+
 /**
  * 扫描PDF文件并建立映射关系
  */
@@ -36,9 +46,13 @@ function scanPdfFiles() {
         // 查找对应的中文文件
         const zhFile = zhFiles.find(f => f.startsWith(prefix + '_'));
         
+        // 从映射中获取中文名称
+        const chineseName = chineseNameMapping[enFile] || '';
+        
         pdfList.push({
           prefix: prefix,
           name: nameWithoutPrefix,
+          chineseName: chineseName,
           enFile: enFile,
           zhFile: zhFile || null,
           enPath: `/pdf/en/${encodeURIComponent(enFile)}`,

@@ -12,11 +12,11 @@ const config = {
   
   // 目录配置
   publicDir: path.join(__dirname, '../public'),
-  dataDir: path.join(__dirname, '../../data'),
   
-  // PDF文件目录
-  pdfEnDir: path.join(__dirname, '../../data/pdfs/en'),
-  pdfZhDir: path.join(__dirname, '../../data/pdfs/zh'),
+  // Handbook PDF文件目录
+  pdfEnDir: path.join(__dirname, '../public/handbook/data/pdfs/en'),
+  pdfZhDir: path.join(__dirname, '../public/handbook/data/pdfs/zh'),
+  pdfMappingPath: path.join(__dirname, '../public/handbook/data/pdfs/pdf_name_mapping.json'),
   
   // 缓存配置
   cache: {
