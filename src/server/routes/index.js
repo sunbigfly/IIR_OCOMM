@@ -5,12 +5,14 @@
 
 const webRoutes = require('./web');
 const pdfRoutes = require('./pdf');
+const authRoutes = require('./auth');
 const translatorRoutes = require('./translator');
 
 function registerRoutes(app) {
   // 注册路由模块
   app.use(webRoutes);
   app.use(pdfRoutes);
+  app.use(authRoutes);
   app.use(translatorRoutes);
 }
 

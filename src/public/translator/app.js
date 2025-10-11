@@ -10,6 +10,7 @@ const state = {
   startTime: null,
   timerInterval: null,
   cancelRequested: false,
+  authenticated: false,
 };
 
 // DOM 元素
@@ -33,6 +34,29 @@ const elements = {
   historyTableBody: document.getElementById('historyTableBody'),
   clearHistoryBtn: document.getElementById('clearHistoryBtn'),
 };
+
+// ============================================
+// 认证相关
+// ============================================
+
+/**
+ * 带认证的fetch请求包装函数
+ */
+async function authenticatedFetch(url, options = {}) {
+  const token = window.authManager.getToken();
+  
+  if (!token) {
+    throw new Error('未认证，请重新登录');
+  }
+
+  // 合并headers
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${token}`
+  };
+
+  return fetch(url, { ...options, headers });
+}
 
 // ============================================
 // 工具函数
@@ -104,7 +128,7 @@ async function calculateFileMD5(file) {
  */
 async function getHistory() {
   try {
-    const response = await fetch('/api/translate/history');
+    const response = await authenticatedFetch('/api/translate/history');
     const data = await response.json();
     
     if (data.success) {
@@ -124,7 +148,7 @@ async function getHistory() {
  */
 async function saveHistory(task) {
   try {
-    const response = await fetch('/api/translate/history', {
+    const response = await authenticatedFetch('/api/translate/history', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(task)
@@ -151,7 +175,7 @@ async function clearHistory() {
   }
   
   try {
-    const response = await fetch('/api/translate/history', {
+    const response = await authenticatedFetch('/api/translate/history', {
       method: 'DELETE'
     });
     
@@ -433,7 +457,7 @@ async function translateFile(file, md5 = null) {
     formData.append('file', file);
 
     // 发送翻译请求
-    const response = await fetch('/api/translate', {
+    const response = await authenticatedFetch('/api/translate', {
       method: 'POST',
       body: formData,
     });
@@ -517,69 +541,148 @@ elements.cancelTranslationBtn.addEventListener('click', cancelTranslation);
 // ============================================
 
 /**
- * 更新历史记录表格
+ * 更新历史记录表格（异步调度，避免阻塞主线程）
  */
+let updateHistoryTablePending = false;
 async function updateHistoryTable() {
-  const history = await getHistory();
-  elements.historyCount.textContent = history.length;
-
-  if (history.length === 0) {
-    elements.historyTableBody.innerHTML = `
-      <tr>
-        <td colspan="5">
-          <div class="empty-history">
-            <svg class="empty-history-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p>暂无翻译记录</p>
-            <p style="font-size: 13px;">上传PDF文件开始翻译</p>
-          </div>
-        </td>
-      </tr>
-    `;
+  // 防抖：如果已经有待处理的更新，跳过
+  if (updateHistoryTablePending) {
     return;
   }
+  
+  updateHistoryTablePending = true;
+  
+  // 使用 requestIdleCallback 在浏览器空闲时更新，避免阻塞主线程
+  const updateTask = async () => {
+    try {
+      const history = await getHistory();
+      elements.historyCount.textContent = history.length;
 
-  // 渲染历史记录
-  elements.historyTableBody.innerHTML = history.map(task => {
-    const statusClass = task.status === 'success' ? 'success' : 'error';
-    const statusText = task.status === 'success' ? '成功' : '失败';
-    
-    return `
-      <tr>
-        <td title="${task.fileName}">${task.fileName}</td>
-        <td>${formatDateTime(task.startTime)}</td>
-        <td>${formatDuration(task.duration)}</td>
-        <td>
-          <span class="status-badge ${statusClass}">
-            <span class="status-dot"></span>
-            ${statusText}
-          </span>
-        </td>
-        <td>
-          <div class="action-buttons">
-            ${task.inputPath ? `
-              <button class="btn-action" onclick="openFile('${task.inputPath}')">查看原文</button>
-            ` : ''}
-            ${task.status === 'success' && task.outputPath ? `
-              <button class="btn-action" onclick="openFile('${task.outputPath}')">查看译文</button>
-            ` : ''}
-            ${task.status === 'error' ? `
-              <button class="btn-action btn-error" title="${task.errorMessage || '未知错误'}">查看错误</button>
-            ` : ''}
-            <button class="btn-action btn-danger" onclick="deleteHistoryItem('${task.id}')">删除</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
+      if (history.length === 0) {
+        elements.historyTableBody.innerHTML = `
+          <tr>
+            <td colspan="5">
+              <div class="empty-history">
+                <svg class="empty-history-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <p>暂无翻译记录</p>
+                <p style="font-size: 13px;">上传PDF文件开始翻译</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // 使用 DocumentFragment 减少重排
+      const fragment = document.createDocumentFragment();
+      const tbody = document.createElement('tbody');
+      
+      // 分批渲染，每批50条，避免一次性处理太多
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < history.length; i += BATCH_SIZE) {
+        const batch = history.slice(i, i + BATCH_SIZE);
+        
+        batch.forEach(task => {
+          const tr = document.createElement('tr');
+          const statusClass = task.status === 'success' ? 'success' : 'error';
+          const statusText = task.status === 'success' ? '成功' : '失败';
+          
+          tr.innerHTML = `
+            <td title="${task.fileName}">${task.fileName}</td>
+            <td>${formatDateTime(task.startTime)}</td>
+            <td>${formatDuration(task.duration)}</td>
+            <td>
+              <span class="status-badge ${statusClass}">
+                <span class="status-dot"></span>
+                ${statusText}
+              </span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                ${task.inputPath ? `
+                  <button class="btn-action" data-action="view-input" data-path="${task.inputPath}">查看原文</button>
+                ` : ''}
+                ${task.status === 'success' && task.outputPath ? `
+                  <button class="btn-action" data-action="view-output" data-path="${task.outputPath}">查看译文</button>
+                ` : ''}
+                ${task.status === 'error' ? `
+                  <button class="btn-action btn-error" data-action="view-error" title="${task.errorMessage || '未知错误'}">查看错误</button>
+                ` : ''}
+                <button class="btn-action btn-danger" data-action="delete" data-id="${task.id}">删除</button>
+              </div>
+            </td>
+          `;
+          
+          tbody.appendChild(tr);
+        });
+        
+        // 分批时让出主线程
+        if (i + BATCH_SIZE < history.length) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+      
+      // 一次性替换整个tbody（减少重排次数）
+      elements.historyTableBody.innerHTML = '';
+      elements.historyTableBody.appendChild(tbody);
+      
+      // 使用事件委托，不再用 onclick
+      bindHistoryTableEvents();
+      
+    } finally {
+      updateHistoryTablePending = false;
+    }
+  };
+  
+  // 优先使用 requestIdleCallback，降级到 setTimeout
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(() => updateTask(), { timeout: 1000 });
+  } else {
+    setTimeout(() => updateTask(), 0);
+  }
+}
+
+/**
+ * 绑定历史记录表格事件（事件委托，性能更好）
+ */
+function bindHistoryTableEvents() {
+  // 移除旧的监听器（如果有）
+  elements.historyTableBody.removeEventListener('click', handleHistoryTableClick);
+  
+  // 添加新的监听器
+  elements.historyTableBody.addEventListener('click', handleHistoryTableClick);
+}
+
+/**
+ * 历史记录表格点击事件处理
+ */
+function handleHistoryTableClick(e) {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  
+  const action = btn.dataset.action;
+  
+  switch (action) {
+    case 'view-input':
+    case 'view-output':
+      openFile(btn.dataset.path);
+      break;
+    case 'view-error':
+      alert(btn.title || '未知错误');
+      break;
+    case 'delete':
+      deleteHistoryItem(btn.dataset.id);
+      break;
+  }
 }
 
 /**
  * 打开文件
  */
-window.openFile = function(filePath) {
+function openFile(filePath) {
   if (!filePath) {
     alert('文件路径不存在');
     return;
@@ -587,12 +690,12 @@ window.openFile = function(filePath) {
   
   // 在新窗口打开文件
   window.open(filePath, '_blank');
-};
+}
 
 /**
  * 删除单条历史记录
  */
-window.deleteHistoryItem = async function(taskId) {
+async function deleteHistoryItem(taskId) {
   if (!confirm('确定删除此记录吗？相关文件也会被删除。')) {
     return;
   }
@@ -608,7 +711,7 @@ window.deleteHistoryItem = async function(taskId) {
     }
 
     // 调用后端删除文件
-    const deleteFileResponse = await fetch('/api/translate/delete', {
+    const deleteFileResponse = await authenticatedFetch('/api/translate/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -624,7 +727,7 @@ window.deleteHistoryItem = async function(taskId) {
     }
 
     // 从服务器删除历史记录
-    const deleteHistoryResponse = await fetch(`/api/translate/history/${taskId}`, {
+    const deleteHistoryResponse = await authenticatedFetch(`/api/translate/history/${taskId}`, {
       method: 'DELETE'
     });
 
@@ -641,7 +744,7 @@ window.deleteHistoryItem = async function(taskId) {
     console.error('删除失败:', error);
     alert('删除失败: ' + error.message);
   }
-};
+}
 
 // 清空历史按钮
 elements.clearHistoryBtn.addEventListener('click', clearHistory);
@@ -650,11 +753,62 @@ elements.clearHistoryBtn.addEventListener('click', clearHistory);
 // 初始化
 // ============================================
 
-async function init() {
-  // 加载历史记录
-  await updateHistoryTable();
+/**
+ * 显示用户信息
+ */
+function showUserInfo() {
+  const employeeId = window.authManager.getEmployeeId();
+  const name = window.authManager.getName();
   
-  console.log('PDF翻译器已初始化 - Session模式');
+  if (employeeId && name) {
+    document.getElementById('userEmployeeId').textContent = employeeId;
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userInfo').style.display = 'flex';
+  }
+}
+
+/**
+ * 登出
+ */
+function logout() {
+  if (confirm('确定要退出登录吗？')) {
+    window.authManager.logout();
+  }
+}
+
+async function init() {
+  try {
+    // 检查认证
+    const authenticated = await window.authManager.init();
+    
+    if (!authenticated) {
+      // 未认证，显示登录对话框
+      await window.authManager.showAuthDialog();
+    }
+    
+    state.authenticated = true;
+    
+    // 显示用户信息
+    showUserInfo();
+    
+    // 绑定登出按钮
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', logout);
+    }
+    
+    // 显示当前用户
+    const employeeId = window.authManager.getEmployeeId();
+    const name = window.authManager.getName();
+    console.log('PDF翻译器已初始化 - 用户:', employeeId, name);
+    
+    // 加载历史记录
+    await updateHistoryTable();
+    
+  } catch (error) {
+    console.error('初始化失败:', error);
+    alert('初始化失败: ' + error.message);
+  }
 }
 
 // 页面加载完成后初始化

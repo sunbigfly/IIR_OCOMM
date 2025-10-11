@@ -5,25 +5,12 @@
 
 const express = require('express');
 const path = require('path');
-const session = require('express-session');
 const config = require('./config');
 const registerRoutes = require('./routes');
 const logger = require('./utils/logger');
 
 function createApp() {
   const app = express();
-
-  // Session 配置 - 用于区分不同用户
-  app.use(session({
-    secret: 'pdf-translator-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { 
-      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10年（永久）
-      httpOnly: true,
-      secure: false // 开发环境用false，生产环境HTTPS用true
-    }
-  }));
 
   // JSON body parser (用于API请求)
   app.use(express.json());

@@ -10,38 +10,85 @@ const path = require('path');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
 const logger = require('../utils/logger');
+const { requireAuth } = require('../middleware/auth');
 
-// 配置文件上传 - 存放在 public/translator/uploads 目录
-const uploadDir = path.join(__dirname, '../../public/translator/uploads/temp');
-const outputDir = path.join(__dirname, '../../public/translator/uploads/translated');
+// 配置文件上传 - 按用户工号隔离
+const uploadsBaseDir = path.join(__dirname, '../../public/translator/uploads');
+const historyBaseDir = path.join(__dirname, '../../public/translator/data/history');
 
-// 服务器端存储 - 每个session的历史记录
-// sessionId -> TranslationTask[]
-const userHistories = new Map();
 const MAX_HISTORY_PER_USER = 1000;
 
-// 确保目录存在
-async function ensureDirectories() {
+/**
+ * 获取用户专属目录路径
+ */
+function getUserUploadDir(employeeId) {
+  return path.join(uploadsBaseDir, employeeId, 'temp');
+}
+
+function getUserOutputDir(employeeId) {
+  return path.join(uploadsBaseDir, employeeId, 'translated');
+}
+
+function getUserHistoryFile(employeeId) {
+  return path.join(historyBaseDir, `${employeeId}.json`);
+}
+
+/**
+ * 确保用户目录存在
+ */
+async function ensureUserDirectories(employeeId) {
   try {
-    await fs.mkdir(uploadDir, { recursive: true });
-    await fs.mkdir(outputDir, { recursive: true });
+    await fs.mkdir(getUserUploadDir(employeeId), { recursive: true });
+    await fs.mkdir(getUserOutputDir(employeeId), { recursive: true });
+    await fs.mkdir(historyBaseDir, { recursive: true });
   } catch (error) {
-    logger.error('创建目录失败:', error);
+    logger.error('创建用户目录失败:', error);
   }
 }
 
-ensureDirectories();
+/**
+ * 读取用户历史记录
+ */
+async function loadUserHistory(employeeId) {
+  const filePath = getUserHistoryFile(employeeId);
+  try {
+    const data = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // 文件不存在或解析失败，返回空数组
+    return [];
+  }
+}
 
-// 配置 multer
+/**
+ * 保存用户历史记录
+ */
+async function saveUserHistory(employeeId, history) {
+  const filePath = getUserHistoryFile(employeeId);
+  try {
+    await fs.writeFile(filePath, JSON.stringify(history, null, 2), 'utf-8');
+  } catch (error) {
+    logger.error('保存历史记录失败:', error);
+    throw error;
+  }
+}
+
+// 配置 multer - 动态存储
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: async function (req, file, cb) {
+    const employeeId = req.employeeId;
+    if (!employeeId) {
+      return cb(new Error('未认证'));
+    }
+    
+    const uploadDir = getUserUploadDir(employeeId);
+    await ensureUserDirectories(employeeId);
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     // 使用纯 ASCII 文件名避免中文问题
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    // 使用 upload_ 前缀 + 唯一ID，避免中文文件名问题
     cb(null, 'upload_' + uniqueSuffix + ext);
   }
 });
@@ -63,17 +110,17 @@ const upload = multer({
 /**
  * 调用 pdf2zh_next 翻译文件
  */
-async function translatePDF(inputPath, originalName) {
+async function translatePDF(inputPath, originalName, outputDir) {
   return new Promise((resolve, reject) => {
     const timeout = 600000; // 10分钟超时
     
-    // 构建命令参数（基于配置文件）
+    // 构建命令参数
     const args = [
       '--output', outputDir,
       '--lang-in', 'en',
       '--lang-out', 'zh-cn',
       '--siliconflowfree',
-      '--no-dual',              // 只生成单语版本
+      '--no-dual',
       '--watermark-output-mode', 'no_watermark',
       '--skip-clean',
       '--no-auto-extract-glossary',
@@ -84,7 +131,6 @@ async function translatePDF(inputPath, originalName) {
       inputPath
     ];
 
-    // 正确处理中文文件名编码（WSL2兼容）
     const displayName = Buffer.from(originalName, 'utf8').toString('utf8');
     logger.info(`开始翻译: ${displayName}`);
     logger.info(`临时文件: ${path.basename(inputPath)}`);
@@ -118,8 +164,8 @@ async function translatePDF(inputPath, originalName) {
         // 查找输出文件
         const baseName = path.basename(inputPath, '.pdf');
         const possibleOutputs = [
-          path.join(outputDir, `${baseName}.no_watermark.zh-cn.mono.pdf`),  // 小写 zh-cn
-          path.join(outputDir, `${baseName}.no_watermark.zh-CN.mono.pdf`),  // 大写 zh-CN
+          path.join(outputDir, `${baseName}.no_watermark.zh-cn.mono.pdf`),
+          path.join(outputDir, `${baseName}.no_watermark.zh-CN.mono.pdf`),
           path.join(outputDir, `${baseName}.zh-cn.mono.pdf`),
           path.join(outputDir, `${baseName}.zh-CN.mono.pdf`),
           path.join(outputDir, `${baseName}.pdf`),
@@ -164,9 +210,9 @@ async function translatePDF(inputPath, originalName) {
 
 /**
  * POST /api/translate
- * 上传并翻译PDF文件
+ * 上传并翻译PDF文件（需要认证）
  */
-router.post('/api/translate', upload.single('file'), async (req, res) => {
+router.post('/api/translate', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -176,6 +222,7 @@ router.post('/api/translate', upload.single('file'), async (req, res) => {
 
   const inputPath = req.file.path;
   const originalName = req.file.originalname;
+  const employeeId = req.employeeId;
 
   try {
     // 检查 pdf2zh_next 是否可用
@@ -195,11 +242,12 @@ router.post('/api/translate', upload.single('file'), async (req, res) => {
     });
 
     // 翻译文件
-    const outputPath = await translatePDF(inputPath, originalName);
+    const outputDir = getUserOutputDir(employeeId);
+    const outputPath = await translatePDF(inputPath, originalName, outputDir);
     
     // 生成可访问的URL
-    const outputUrl = `/translator/uploads/translated/${path.basename(outputPath)}`;
-    const inputUrl = `/translator/uploads/temp/${path.basename(inputPath)}`;
+    const outputUrl = `/translator/uploads/${employeeId}/translated/${path.basename(outputPath)}`;
+    const inputUrl = `/translator/uploads/${employeeId}/temp/${path.basename(inputPath)}`;
 
     res.json({
       success: true,
@@ -228,10 +276,11 @@ router.post('/api/translate', upload.single('file'), async (req, res) => {
 
 /**
  * POST /api/translate/delete
- * 删除翻译文件
+ * 删除翻译文件（需要认证）
  */
-router.post('/api/translate/delete', async (req, res) => {
+router.post('/api/translate/delete', requireAuth, async (req, res) => {
   const { inputPath, outputPath } = req.body;
+  const employeeId = req.employeeId;
   
   const results = {
     input: false,
@@ -240,10 +289,12 @@ router.post('/api/translate/delete', async (req, res) => {
   };
 
   try {
+    const uploadDir = getUserUploadDir(employeeId);
+    const outputDir = getUserOutputDir(employeeId);
+
     // 删除输入文件
     if (inputPath) {
       try {
-        // 从URL路径中提取文件名：/translator/uploads/temp/xxx.pdf -> xxx.pdf
         const fileName = path.basename(inputPath);
         const filePath = path.join(uploadDir, fileName);
         logger.info(`尝试删除输入文件: ${filePath}`);
@@ -259,7 +310,6 @@ router.post('/api/translate/delete', async (req, res) => {
     // 删除输出文件
     if (outputPath) {
       try {
-        // 从URL路径中提取文件名：/translator/uploads/translated/xxx.pdf -> xxx.pdf
         const fileName = path.basename(outputPath);
         const filePath = path.join(outputDir, fileName);
         logger.info(`尝试删除输出文件: ${filePath}`);
@@ -289,12 +339,12 @@ router.post('/api/translate/delete', async (req, res) => {
 
 /**
  * GET /api/translate/history
- * 获取当前用户的翻译历史
+ * 获取当前用户的翻译历史（需要认证）
  */
-router.get('/api/translate/history', (req, res) => {
+router.get('/api/translate/history', requireAuth, async (req, res) => {
   try {
-    const sessionId = req.sessionID;
-    const history = userHistories.get(sessionId) || [];
+    const employeeId = req.employeeId;
+    const history = await loadUserHistory(employeeId);
     
     res.json({
       success: true,
@@ -312,11 +362,11 @@ router.get('/api/translate/history', (req, res) => {
 
 /**
  * POST /api/translate/history
- * 保存单条翻译历史
+ * 保存单条翻译历史（需要认证）
  */
-router.post('/api/translate/history', (req, res) => {
+router.post('/api/translate/history', requireAuth, async (req, res) => {
   try {
-    const sessionId = req.sessionID;
+    const employeeId = req.employeeId;
     const task = req.body;
     
     if (!task || !task.id) {
@@ -326,8 +376,8 @@ router.post('/api/translate/history', (req, res) => {
       });
     }
     
-    // 获取或创建用户历史
-    let history = userHistories.get(sessionId) || [];
+    // 读取当前历史
+    let history = await loadUserHistory(employeeId);
     
     // 添加新记录（最新的在前面）
     history.unshift(task);
@@ -338,9 +388,9 @@ router.post('/api/translate/history', (req, res) => {
     }
     
     // 保存
-    userHistories.set(sessionId, history);
+    await saveUserHistory(employeeId, history);
     
-    logger.info(`用户 ${sessionId.substring(0, 8)}... 保存历史记录: ${task.fileName}`);
+    logger.info(`用户 ${employeeId} 保存历史记录: ${task.fileName}`);
     
     res.json({
       success: true,
@@ -357,14 +407,14 @@ router.post('/api/translate/history', (req, res) => {
 
 /**
  * DELETE /api/translate/history/:taskId
- * 删除单条历史记录
+ * 删除单条历史记录（需要认证）
  */
-router.delete('/api/translate/history/:taskId', (req, res) => {
+router.delete('/api/translate/history/:taskId', requireAuth, async (req, res) => {
   try {
-    const sessionId = req.sessionID;
+    const employeeId = req.employeeId;
     const taskId = req.params.taskId;
     
-    let history = userHistories.get(sessionId) || [];
+    let history = await loadUserHistory(employeeId);
     const originalLength = history.length;
     
     // 过滤掉指定的任务
@@ -377,10 +427,10 @@ router.delete('/api/translate/history/:taskId', (req, res) => {
       });
     }
     
-    // 更新存储
-    userHistories.set(sessionId, history);
+    // 保存
+    await saveUserHistory(employeeId, history);
     
-    logger.info(`用户 ${sessionId.substring(0, 8)}... 删除历史记录: ${taskId}`);
+    logger.info(`用户 ${employeeId} 删除历史记录: ${taskId}`);
     
     res.json({
       success: true,
@@ -397,15 +447,16 @@ router.delete('/api/translate/history/:taskId', (req, res) => {
 
 /**
  * DELETE /api/translate/history
- * 清空当前用户的所有历史记录
+ * 清空当前用户的所有历史记录（需要认证）
  */
-router.delete('/api/translate/history', (req, res) => {
+router.delete('/api/translate/history', requireAuth, async (req, res) => {
   try {
-    const sessionId = req.sessionID;
+    const employeeId = req.employeeId;
     
-    userHistories.delete(sessionId);
+    // 保存空数组
+    await saveUserHistory(employeeId, []);
     
-    logger.info(`用户 ${sessionId.substring(0, 8)}... 清空所有历史记录`);
+    logger.info(`用户 ${employeeId} 清空所有历史记录`);
     
     res.json({
       success: true,
@@ -468,4 +519,3 @@ router.get('/api/translate/health', async (req, res) => {
 });
 
 module.exports = router;
-
