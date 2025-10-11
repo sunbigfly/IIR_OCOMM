@@ -18,6 +18,10 @@ const historyBaseDir = path.join(__dirname, '../../public/translator/data/histor
 
 const MAX_HISTORY_PER_USER = 1000;
 
+// 全局进程管理 - 存储运行中的翻译进程
+// key: requestId, value: { process, inputPath, employeeId, startTime }
+const runningProcesses = new Map();
+
 /**
  * 获取用户专属目录路径
  */
@@ -109,8 +113,13 @@ const upload = multer({
 
 /**
  * 调用 pdf2zh_next 翻译文件
+ * @param {string} requestId - 请求唯一ID，用于管理进程
+ * @param {string} inputPath - 输入文件路径
+ * @param {string} originalName - 原始文件名
+ * @param {string} outputDir - 输出目录
+ * @param {string} employeeId - 用户工号
  */
-async function translatePDF(inputPath, originalName, outputDir) {
+async function translatePDF(requestId, inputPath, originalName, outputDir, employeeId) {
   return new Promise((resolve, reject) => {
     const timeout = 600000; // 10分钟超时
     
@@ -132,30 +141,71 @@ async function translatePDF(inputPath, originalName, outputDir) {
     ];
 
     const displayName = Buffer.from(originalName, 'utf8').toString('utf8');
-    logger.info(`开始翻译: ${displayName}`);
-    logger.info(`临时文件: ${path.basename(inputPath)}`);
+    logger.info(`[${requestId}] 开始翻译: ${displayName}`);
+    logger.info(`[${requestId}] 临时文件: ${path.basename(inputPath)}`);
 
-    const process = spawn('pdf2zh_next', args);
+    const childProcess = spawn('pdf2zh_next', args);
+    
+    // 将进程信息存入全局 Map
+    runningProcesses.set(requestId, {
+      process: childProcess,
+      inputPath,
+      employeeId,
+      startTime: Date.now(),
+      originalName
+    });
     
     let stdout = '';
     let stderr = '';
+    let isCancelled = false;
 
-    process.stdout.on('data', (data) => {
+    childProcess.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    process.stderr.on('data', (data) => {
+    childProcess.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
     // 设置超时
-    const timer = setTimeout(() => {
-      process.kill();
-      reject(new Error('翻译超时（超过10分钟）'));
+    const timer = setTimeout(async () => {
+      logger.warn(`[${requestId}] 翻译超时，强制终止进程`);
+      childProcess.kill('SIGKILL');
+      runningProcesses.delete(requestId);
+      
+      // 清理临时文件
+      try {
+        await fs.unlink(inputPath);
+        logger.info(`[${requestId}] 超时后已清理临时文件`);
+      } catch (err) {
+        logger.warn(`[${requestId}] 清理临时文件失败: ${err.message}`);
+      }
+      
+      const timeoutError = new Error('翻译超时（超过10分钟）');
+      timeoutError.fileCleaned = true;
+      reject(timeoutError);
     }, timeout);
 
-    process.on('close', async (code) => {
+    childProcess.on('close', async (code) => {
       clearTimeout(timer);
+      runningProcesses.delete(requestId);
+      
+      // 如果是被取消的（退出码为 null 或 SIGTERM/SIGKILL）
+      if (code === null || code > 128) {
+        logger.info(`[${requestId}] 翻译被取消或终止`);
+        // 清理临时文件
+        try {
+          await fs.unlink(inputPath);
+          logger.info(`[${requestId}] 已清理临时文件`);
+        } catch (err) {
+          logger.warn(`[${requestId}] 清理临时文件失败: ${err.message}`);
+        }
+        // 使用特殊错误标记，告诉外层不要再清理
+        const cancelError = new Error('翻译已取消');
+        cancelError.fileCleaned = true; // 标记文件已清理
+        reject(cancelError);
+        return;
+      }
       
       if (code === 0) {
         const displayName = Buffer.from(originalName, 'utf8').toString('utf8');
@@ -208,9 +258,10 @@ async function translatePDF(inputPath, originalName, outputDir) {
       }
     });
 
-    process.on('error', (error) => {
+    childProcess.on('error', (error) => {
       clearTimeout(timer);
-      logger.error(`进程错误: ${error.message}`);
+      runningProcesses.delete(requestId);
+      logger.error(`[${requestId}] 进程错误: ${error.message}`);
       reject(error);
     });
   });
@@ -231,6 +282,9 @@ router.post('/api/translate', requireAuth, upload.single('file'), async (req, re
   const inputPath = req.file.path;
   const originalName = req.file.originalname;
   const employeeId = req.employeeId;
+  
+  // 使用前端传来的 requestId，如果没有则生成
+  const requestId = req.body.requestId || `${employeeId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
     // 检查 pdf2zh_next 是否可用
@@ -251,7 +305,7 @@ router.post('/api/translate', requireAuth, upload.single('file'), async (req, re
 
     // 翻译文件
     const outputDir = getUserOutputDir(employeeId);
-    const outputPath = await translatePDF(inputPath, originalName, outputDir);
+    const outputPath = await translatePDF(requestId, inputPath, originalName, outputDir, employeeId);
     
     // 生成可访问的URL
     const outputUrl = `/translator/uploads/${employeeId}/translated/${path.basename(outputPath)}`;
@@ -259,6 +313,7 @@ router.post('/api/translate', requireAuth, upload.single('file'), async (req, re
 
     res.json({
       success: true,
+      requestId: requestId,
       inputPath: inputUrl,
       outputPath: outputUrl,
       originalName: originalName,
@@ -268,16 +323,76 @@ router.post('/api/translate', requireAuth, upload.single('file'), async (req, re
   } catch (error) {
     logger.error('翻译错误:', error);
     
-    // 清理上传的文件
-    try {
-      await fs.unlink(inputPath);
-    } catch (unlinkError) {
-      logger.error('清理文件失败:', unlinkError);
+    // 只有在文件未被清理的情况下才清理
+    // 如果是取消操作，文件已在 translatePDF 内部清理
+    if (!error.fileCleaned) {
+      try {
+        await fs.unlink(inputPath);
+        logger.info('已清理上传的临时文件');
+      } catch (unlinkError) {
+        // 只记录真正的错误（不是文件不存在）
+        if (unlinkError.code !== 'ENOENT') {
+          logger.error('清理文件失败:', unlinkError);
+        }
+      }
     }
 
     res.status(500).json({
       success: false,
       error: error.message || '翻译失败'
+    });
+  }
+});
+
+/**
+ * POST /api/translate/cancel
+ * 取消正在进行的翻译任务（需要认证）
+ */
+router.post('/api/translate/cancel', requireAuth, async (req, res) => {
+  const { requestId } = req.body;
+  const employeeId = req.employeeId;
+  
+  if (!requestId) {
+    return res.status(400).json({
+      success: false,
+      error: '缺少 requestId'
+    });
+  }
+  
+  try {
+    const processInfo = runningProcesses.get(requestId);
+    
+    if (!processInfo) {
+      return res.status(404).json({
+        success: false,
+        error: '未找到运行中的翻译任务'
+      });
+    }
+    
+    // 验证是否是用户自己的任务
+    if (processInfo.employeeId !== employeeId) {
+      return res.status(403).json({
+        success: false,
+        error: '无权取消此任务'
+      });
+    }
+    
+    logger.info(`[${requestId}] 用户 ${employeeId} 请求取消翻译: ${processInfo.originalName}`);
+    
+    // 立即强制终止进程（pdf2zh_next 不响应 SIGTERM，直接用 SIGKILL）
+    processInfo.process.kill('SIGKILL');
+    logger.info(`[${requestId}] 已发送 SIGKILL 强制终止进程`);
+    
+    res.json({
+      success: true,
+      message: '取消请求已发送'
+    });
+    
+  } catch (error) {
+    logger.error(`取消翻译错误: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -459,19 +574,66 @@ router.delete('/api/translate/history/:taskId', requireAuth, async (req, res) =>
 /**
  * DELETE /api/translate/history
  * 清空当前用户的所有历史记录（需要认证）
+ * 同时删除所有关联的文件
  */
 router.delete('/api/translate/history', requireAuth, async (req, res) => {
   try {
     const employeeId = req.employeeId;
     
-    // 保存空数组
+    // 读取当前历史记录
+    const history = await loadUserHistory(employeeId);
+    
+    const uploadDir = getUserUploadDir(employeeId);
+    const outputDir = getUserOutputDir(employeeId);
+    
+    let deletedCount = 0;
+    let errorCount = 0;
+    
+    // 删除所有关联的文件
+    for (const task of history) {
+      // 删除输入文件
+      if (task.inputPath) {
+        try {
+          const fileName = path.basename(task.inputPath);
+          const filePath = path.join(uploadDir, fileName);
+          await fs.unlink(filePath);
+          deletedCount++;
+          logger.info(`已删除输入文件: ${fileName}`);
+        } catch (error) {
+          if (error.code !== 'ENOENT') { // 忽略文件不存在的错误
+            errorCount++;
+            logger.warn(`删除输入文件失败: ${task.inputPath} - ${error.message}`);
+          }
+        }
+      }
+      
+      // 删除输出文件
+      if (task.outputPath) {
+        try {
+          const fileName = path.basename(task.outputPath);
+          const filePath = path.join(outputDir, fileName);
+          await fs.unlink(filePath);
+          deletedCount++;
+          logger.info(`已删除输出文件: ${fileName}`);
+        } catch (error) {
+          if (error.code !== 'ENOENT') { // 忽略文件不存在的错误
+            errorCount++;
+            logger.warn(`删除输出文件失败: ${task.outputPath} - ${error.message}`);
+          }
+        }
+      }
+    }
+    
+    // 清空历史记录
     await saveUserHistory(employeeId, []);
     
-    logger.info(`用户 ${employeeId} 清空所有历史记录`);
+    logger.info(`用户 ${employeeId} 清空所有历史记录，删除 ${deletedCount} 个文件，失败 ${errorCount} 个`);
     
     res.json({
       success: true,
-      message: '历史记录已清空'
+      message: '历史记录已清空',
+      deletedFiles: deletedCount,
+      errors: errorCount
     });
   } catch (error) {
     logger.error('清空历史记录错误:', error);

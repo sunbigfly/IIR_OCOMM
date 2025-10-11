@@ -120,16 +120,42 @@
       <div class="history-section">
         <div class="history-header">
           <h2>翻译历史 (共 <span id="historyCount">0</span> 条记录)</h2>
-          <button class="btn-secondary btn-small" id="clearHistoryBtn">清空历史</button>
+          <div class="history-actions">
+            <!-- 分页控件 -->
+            <div class="pagination-info">
+              <span id="page-info" aria-live="polite" aria-atomic="true">第 1 页，共 1 页</span>
+              <div class="pagination-controls" role="navigation" aria-label="分页导航">
+                <button id="prev-page" class="btn-page" disabled aria-label="上一页">上一页</button>
+                <button id="next-page" class="btn-page" disabled aria-label="下一页">下一页</button>
+                <div class="page-jump-controls">
+                  <span class="page-jump-label">跳转到</span>
+                  <input type="number" id="page-jump-input" class="page-jump-input" min="1" value="1" aria-label="输入页码" title="输入页码后按回车或点击跳转按钮" />
+                  <button id="page-jump-btn" class="btn-page-jump" aria-label="跳转到指定页">跳转</button>
+                </div>
+                <div class="items-per-page-controls">
+                  <label for="items-per-page" class="items-per-page-label">每页显示</label>
+                  <select id="items-per-page" class="items-per-page-select" aria-label="选择每页显示行数">
+                    <option value="10">10条</option>
+                    <option value="20" selected>20条</option>
+                    <option value="50">50条</option>
+                    <option value="100">100条</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <button class="btn-secondary btn-small" id="clearHistoryBtn">清空历史</button>
+          </div>
         </div>
+        
         <div class="history-table-container">
           <table class="history-table" id="historyTable">
             <colgroup>
+              <col style="width: 38%">
               <col style="width: 20%">
-              <col style="width: 15%">
-              <col style="width: 8%">
               <col style="width: 10%">
-              <col style="width: 47%">
+              <col style="width: 10%">
+              <col style="width: 22%">
             </colgroup>
             <thead>
               <tr>

@@ -12,7 +12,13 @@ const state = {
   cancelRequested: false,
   authenticated: false,
   abortController: null,  // 用于中断HTTP请求
+  uploadProgress: 0,      // 当前文件上传进度 (0-100)
+  currentRequestId: null, // 当前翻译任务的 requestId
 };
+
+// 分页变量
+let currentPage = 1;
+let itemsPerPage = 20; // 历史记录默认每页20条
 
 // DOM 元素
 const elements = {
@@ -34,6 +40,15 @@ const elements = {
   historyCount: document.getElementById('historyCount'),
   historyTableBody: document.getElementById('historyTableBody'),
   clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+  uploadProgressBar: null,  // 动态创建
+  uploadProgressText: null, // 动态创建
+  // 分页相关元素
+  pageInfo: document.getElementById('page-info'),
+  prevPageBtn: document.getElementById('prev-page'),
+  nextPageBtn: document.getElementById('next-page'),
+  pageJumpInput: document.getElementById('page-jump-input'),
+  pageJumpBtn: document.getElementById('page-jump-btn'),
+  itemsPerPageSelect: document.getElementById('items-per-page'),
 };
 
 // ============================================
@@ -103,6 +118,36 @@ function formatDateTime(timestamp) {
   const hour = date.getHours().toString().padStart(2, '0');
   const minute = date.getMinutes().toString().padStart(2, '0');
   return `${year}-${month}-${day} ${hour}:${minute}`;
+}
+
+/**
+ * 格式化文件大小
+ */
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+/**
+ * Toast 通知
+ */
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // 触发动画
+  setTimeout(() => toast.classList.add('show'), 10);
+  
+  // 3秒后移除
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
 /**
@@ -219,11 +264,20 @@ function addFiles(files) {
 }
 
 /**
- * 移除文件
+ * 移除文件（带动画）
  */
 function removeFile(index) {
-  state.selectedFiles.splice(index, 1);
-  updateFileList();
+  const fileItem = elements.fileItems.children[index];
+  if (fileItem) {
+    fileItem.style.animation = 'fileItemSlideOut 0.3s ease';
+    fileItem.addEventListener('animationend', () => {
+      state.selectedFiles.splice(index, 1);
+      updateFileList();
+    }, { once: true });
+  } else {
+    state.selectedFiles.splice(index, 1);
+    updateFileList();
+  }
 }
 
 /**
@@ -271,6 +325,7 @@ function renderFileList() {
 function createFileItem(file, index) {
   const div = document.createElement('div');
   div.className = 'file-item';
+  div.style.animation = 'fileItemSlideIn 0.3s ease';
   
   // 文件信息
   const fileInfo = document.createElement('div');
@@ -279,12 +334,21 @@ function createFileItem(file, index) {
   const icon = createSVGIcon('file');
   fileInfo.appendChild(icon);
   
+  const fileDetails = document.createElement('div');
+  fileDetails.className = 'file-details';
+  
   const fileName = document.createElement('span');
   fileName.className = 'file-name';
   fileName.title = file.name;
   fileName.textContent = file.name;
-  fileInfo.appendChild(fileName);
+  fileDetails.appendChild(fileName);
   
+  const fileSize = document.createElement('span');
+  fileSize.className = 'file-size';
+  fileSize.textContent = formatFileSize(file.size);
+  fileDetails.appendChild(fileSize);
+  
+  fileInfo.appendChild(fileDetails);
   div.appendChild(fileInfo);
   
   // 移除按钮
@@ -403,7 +467,7 @@ function initUploadEvents() {
  */
 async function startTranslation() {
   if (state.selectedFiles.length === 0) {
-    alert('请先选择要翻译的PDF文件');
+    showToast('请先选择要翻译的PDF文件', 'warning');
     return;
   }
 
@@ -420,6 +484,9 @@ async function startTranslation() {
   // 显示进度区域
   elements.progressSection.classList.add('show');
   elements.progressTotal.textContent = state.selectedFiles.length;
+  
+  // 创建上传进度条
+  createUploadProgressBar();
   
   // 禁用上传区域
   elements.uploadArea.style.opacity = '0.5';
@@ -438,7 +505,9 @@ async function startTranslation() {
 
   // 逐个翻译
   for (let i = 0; i < state.selectedFiles.length; i++) {
+    // 检查是否取消 - 关键修复：在每次循环开始时检查
     if (state.cancelRequested) {
+      showToast('翻译已取消', 'info');
       break;
     }
 
@@ -452,6 +521,12 @@ async function startTranslation() {
     // 计算文件MD5
     const md5 = await calculateFileMD5(file);
     
+    // 再次检查取消状态
+    if (state.cancelRequested) {
+      showToast('翻译已取消', 'info');
+      break;
+    }
+    
     // 检查是否已翻译过
     if (md5) {
       const history = await getHistory();
@@ -459,7 +534,7 @@ async function startTranslation() {
       
       if (existingTask) {
         // 已翻译过，跳过
-        alert(`文件 "${file.name}" 已翻译过！\n\n原文件名: ${existingTask.fileName}\n翻译时间: ${formatDateTime(existingTask.startTime)}\n\n已自动跳过此文件。`);
+        showToast(`文件 "${file.name}" 已翻译过，已跳过`, 'info');
         results.skipped++;
         elements.progressCurrent.textContent = i + 1;
         continue;
@@ -469,10 +544,18 @@ async function startTranslation() {
     // 翻译文件
     const result = await translateFile(file, md5);
     
+    // 检查取消状态
+    if (state.cancelRequested) {
+      showToast('翻译已取消', 'info');
+      break;
+    }
+    
     if (result.success) {
       results.success++;
-    } else {
+      showToast(`✓ ${file.name} 翻译完成`, 'success');
+    } else if (result.error !== '已取消') {
       results.failed++;
+      showToast(`✗ ${file.name} 翻译失败: ${result.error}`, 'error');
     }
 
     // 更新进度
@@ -486,8 +569,9 @@ async function startTranslation() {
   state.isTranslating = false;
   const duration = Math.floor((Date.now() - state.startTime) / 1000);
 
-  // 隐藏进度区域（不再显示总结弹窗）
+  // 隐藏进度区域
   elements.progressSection.classList.remove('show');
+  removeUploadProgressBar();
 
   // 恢复上传区域
   elements.uploadArea.style.opacity = '1';
@@ -498,21 +582,26 @@ async function startTranslation() {
   state.selectedFiles = [];
   updateFileList();
   
+  // 显示完成通知
+  if (!state.cancelRequested && results.success > 0) {
+    showToast(`🎉 完成！成功 ${results.success} 个${results.failed > 0 ? `，失败 ${results.failed} 个` : ''}`, 'success');
+  }
+  
   // 滚动到历史记录，让用户看到新添加的记录
   setTimeout(() => {
-    document.querySelector('.history-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelector('.history-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 300);
 }
 
 /**
- * 翻译单个文件
+ * 翻译单个文件（使用XMLHttpRequest支持上传进度）
  */
 async function translateFile(file, md5 = null) {
   const taskId = generateId();
   const task = {
     id: taskId,
     fileName: file.name,
-    md5: md5,  // 保存MD5用于去重
+    md5: md5,
     startTime: Date.now(),
     endTime: null,
     duration: 0,
@@ -522,81 +611,203 @@ async function translateFile(file, md5 = null) {
     outputPath: null,
   };
 
-  try {
+  return new Promise((resolve) => {
     // 检查是否已取消
     if (state.cancelRequested) {
-      return { success: false, error: '已取消' };
+      resolve({ success: false, error: '已取消' });
+      return;
     }
 
-    // 创建 FormData
+    const xhr = new XMLHttpRequest();
     const formData = new FormData();
     formData.append('file', file);
-
-    // 发送翻译请求（带中断信号）
-    const response = await authenticatedFetch('/api/translate', {
-      method: 'POST',
-      body: formData,
-      signal: state.abortController?.signal,  // 传递中断信号
+    
+    // 生成 requestId 并发送给后端
+    const requestId = `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    formData.append('requestId', requestId);
+    state.currentRequestId = requestId;
+    
+    // 上传进度
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        updateUploadProgress(percentComplete);
+      }
     });
-
-    // 再次检查是否已取消（请求返回后）
-    if (state.cancelRequested) {
-      return { success: false, error: '已取消' };
-    }
-
-    const data = await response.json();
-
-    if (response.ok && data.success) {
-      // 翻译成功
-      task.status = 'success';
-      task.endTime = Date.now();
-      task.duration = Math.floor((task.endTime - task.startTime) / 1000);
-      task.inputPath = data.inputPath;
-      task.outputPath = data.outputPath;
+    
+    // 完成
+    xhr.addEventListener('load', async () => {
+      // 清除 requestId
+      state.currentRequestId = null;
       
-      saveHistory(task);
-      return { success: true };
-    } else {
-      // 翻译失败
+      if (state.cancelRequested) {
+        resolve({ success: false, error: '已取消' });
+        return;
+      }
+      
+      try {
+        const data = JSON.parse(xhr.responseText);
+        
+        if (xhr.status === 200 && data.success) {
+          task.status = 'success';
+          task.endTime = Date.now();
+          task.duration = Math.floor((task.endTime - task.startTime) / 1000);
+          task.inputPath = data.inputPath;
+          task.outputPath = data.outputPath;
+          
+          await saveHistory(task);
+          resolve({ success: true });
+        } else {
+          task.status = 'error';
+          task.endTime = Date.now();
+          task.duration = Math.floor((task.endTime - task.startTime) / 1000);
+          task.errorMessage = data.error || '翻译失败';
+          
+          await saveHistory(task);
+          resolve({ success: false, error: task.errorMessage });
+        }
+      } catch (error) {
+        task.status = 'error';
+        task.endTime = Date.now();
+        task.duration = Math.floor((task.endTime - task.startTime) / 1000);
+        task.errorMessage = '解析响应失败';
+        
+        await saveHistory(task);
+        resolve({ success: false, error: task.errorMessage });
+      }
+    });
+    
+    // 错误
+    xhr.addEventListener('error', async () => {
+      if (state.cancelRequested) {
+        resolve({ success: false, error: '已取消' });
+        return;
+      }
+      
       task.status = 'error';
       task.endTime = Date.now();
       task.duration = Math.floor((task.endTime - task.startTime) / 1000);
-      task.errorMessage = data.error || '翻译失败';
+      task.errorMessage = '网络错误';
       
-      saveHistory(task);
-      return { success: false, error: task.errorMessage };
-    }
-  } catch (error) {
-    // 网络错误或其他异常（包括被取消的情况）
-    // 如果是 AbortError，说明请求被主动取消，不保存历史记录
-    if (error.name === 'AbortError' || state.cancelRequested) {
-      return { success: false, error: '已取消' };
+      await saveHistory(task);
+      resolve({ success: false, error: task.errorMessage });
+    });
+    
+    // 取消
+    xhr.addEventListener('abort', () => {
+      resolve({ success: false, error: '已取消' });
+    });
+    
+    // 添加认证token
+    const token = window.authManager.getToken();
+    if (!token) {
+      resolve({ success: false, error: '未认证' });
+      return;
     }
     
-    task.status = 'error';
-    task.endTime = Date.now();
-    task.duration = Math.floor((task.endTime - task.startTime) / 1000);
-    task.errorMessage = error.message || '网络错误';
+    xhr.open('POST', '/api/translate');
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.send(formData);
     
-    saveHistory(task);
-    return { success: false, error: task.errorMessage };
+    // 监听取消请求
+    if (state.abortController) {
+      state.abortController.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+    }
+  });
+}
+
+/**
+ * 创建上传进度条
+ */
+function createUploadProgressBar() {
+  // 检查是否已存在
+  if (elements.uploadProgressBar) {
+    return;
   }
+  
+  const progressContainer = document.createElement('div');
+  progressContainer.className = 'upload-progress-container';
+  progressContainer.innerHTML = `
+    <div class="upload-progress-label">上传进度</div>
+    <div class="upload-progress-bar">
+      <div class="upload-progress-fill"></div>
+    </div>
+    <div class="upload-progress-text">0%</div>
+  `;
+  
+  elements.progressSection.querySelector('.progress-current').appendChild(progressContainer);
+  elements.uploadProgressBar = progressContainer.querySelector('.upload-progress-fill');
+  elements.uploadProgressText = progressContainer.querySelector('.upload-progress-text');
+}
+
+/**
+ * 更新上传进度
+ */
+function updateUploadProgress(percent) {
+  if (elements.uploadProgressBar && elements.uploadProgressText) {
+    elements.uploadProgressBar.style.width = `${percent}%`;
+    elements.uploadProgressText.textContent = `${percent}%`;
+    state.uploadProgress = percent;
+  }
+}
+
+/**
+ * 移除上传进度条
+ */
+function removeUploadProgressBar() {
+  const container = elements.progressSection.querySelector('.upload-progress-container');
+  if (container) {
+    container.remove();
+  }
+  elements.uploadProgressBar = null;
+  elements.uploadProgressText = null;
+  state.uploadProgress = 0;
 }
 
 /**
  * 取消翻译
  */
-function cancelTranslation() {
+async function cancelTranslation() {
   if (confirm('确定要取消当前的翻译任务吗？')) {
     state.cancelRequested = true;
     
-    // 中断正在进行的HTTP请求
+    // 1. 先通知后端立即终止 pdf2zh_next 进程
+    if (state.currentRequestId) {
+      try {
+        const response = await authenticatedFetch('/api/translate/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: state.currentRequestId })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          showToast('✓ 已终止翻译进程', 'success');
+        } else if (response.status === 404) {
+          // 文件还在上传中，后端还没开始翻译，只需 abort XHR
+          showToast('已取消上传', 'info');
+        } else {
+          showToast('⚠️ ' + result.error, 'warning');
+        }
+      } catch (error) {
+        console.error('取消请求失败:', error);
+        // 如果后端还没记录这个任务，也算正常（文件还在上传）
+        showToast('已取消操作', 'info');
+      }
+    }
+    
+    // 2. 然后中断 HTTP 连接（此时后端进程已被杀）
     if (state.abortController) {
       state.abortController.abort();
       state.abortController = null;
     }
     
+    // 3. 清理状态
+    state.currentRequestId = null;
     stopTimer();
+    removeUploadProgressBar();
     elements.progressSection.classList.remove('show');
     elements.uploadArea.style.opacity = '1';
     elements.uploadArea.style.pointerEvents = 'auto';
@@ -643,6 +854,7 @@ function initTranslationEvents() {
  */
 async function updateHistoryTable() {
   const history = await getHistory();
+  window.cachedHistory = history; // 缓存数据供分页使用
   renderHistoryTable(history);
 }
 
@@ -654,6 +866,7 @@ function renderHistoryTable(history) {
   
   if (history.length === 0) {
     renderEmptyState();
+    updatePaginationUI(0); // 无数据时更新分页UI
     return;
   }
   
@@ -689,18 +902,27 @@ function renderEmptyState() {
 }
 
 /**
- * 渲染历史记录行
+ * 渲染历史记录行（分页）
  */
 function renderHistoryRows(history) {
-  const fragment = document.createDocumentFragment();
+  const totalItems = history.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const currentItems = history.slice(startIndex, endIndex);
   
-  history.forEach(task => {
+  // 渲染当前页的数据
+  const fragment = document.createDocumentFragment();
+  currentItems.forEach(task => {
     const tr = createHistoryRow(task);
     fragment.appendChild(tr);
   });
   
   elements.historyTableBody.innerHTML = '';
   elements.historyTableBody.appendChild(fragment);
+  
+  // 更新分页UI
+  updatePaginationUI(totalPages);
 }
 
 /**
@@ -929,6 +1151,178 @@ function logout() {
   }
 }
 
+/**
+ * 初始化键盘快捷键
+ */
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + V - 粘贴文件
+    if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !state.isTranslating) {
+      // 检查是否在输入框中
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // 触发文件选择
+      setTimeout(() => {
+        navigator.clipboard.read?.().then(items => {
+          for (const item of items) {
+            for (const type of item.types) {
+              if (type.startsWith('image/') || type === 'application/pdf') {
+                item.getType(type).then(blob => {
+                  const file = new File([blob], 'pasted.pdf', { type: blob.type });
+                  addFiles([file]);
+                  showToast('已从剪贴板添加文件', 'success');
+                });
+              }
+            }
+          }
+        }).catch(() => {
+          // 如果剪贴板API不可用，提示用户
+          showToast('请使用文件选择或拖拽上传', 'info');
+        });
+      }, 0);
+    }
+    
+    // Ctrl/Cmd + Enter - 开始翻译
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !state.isTranslating) {
+      if (state.selectedFiles.length > 0) {
+        e.preventDefault();
+        startTranslation();
+      }
+    }
+    
+    // Esc - 取消翻译
+    if (e.key === 'Escape' && state.isTranslating) {
+      e.preventDefault();
+      cancelTranslation();
+    }
+  });
+}
+
+// ============================================
+// 分页功能
+// ============================================
+
+/**
+ * 更新分页UI状态
+ */
+function updatePaginationUI(totalPages) {
+  if (!elements.pageInfo || !elements.prevPageBtn || !elements.nextPageBtn) {
+    return; // 如果分页元素不存在，直接返回
+  }
+  
+  if (totalPages === 0) {
+    elements.pageInfo.textContent = '第 0 页，共 0 页';
+    elements.prevPageBtn.disabled = true;
+    elements.nextPageBtn.disabled = true;
+    if (elements.pageJumpInput) {
+      elements.pageJumpInput.value = 1;
+      elements.pageJumpInput.max = 1;
+    }
+    return;
+  }
+  
+  elements.pageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
+  elements.prevPageBtn.disabled = currentPage <= 1;
+  elements.nextPageBtn.disabled = currentPage >= totalPages;
+  
+  if (elements.pageJumpInput) {
+    elements.pageJumpInput.value = currentPage;
+    elements.pageJumpInput.max = totalPages;
+  }
+}
+
+/**
+ * 切换页面
+ */
+function changePage(direction) {
+  const history = window.cachedHistory || [];
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  const newPage = currentPage + direction;
+  
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentPage = newPage;
+    renderHistoryTable(history);
+  }
+}
+
+/**
+ * 跳转到指定页面
+ */
+function jumpToPage() {
+  if (!elements.pageJumpInput) return;
+  
+  const history = window.cachedHistory || [];
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  const targetPage = parseInt(elements.pageJumpInput.value, 10);
+  
+  if (isNaN(targetPage) || targetPage < 1 || targetPage > totalPages) {
+    showToast(`请输入有效的页码（1-${totalPages}）`, 'error');
+    elements.pageJumpInput.value = currentPage;
+    return;
+  }
+  
+  if (targetPage === currentPage) {
+    return;
+  }
+  
+  currentPage = targetPage;
+  renderHistoryTable(history);
+}
+
+/**
+ * 改变每页显示条数
+ */
+function changeItemsPerPage() {
+  if (!elements.itemsPerPageSelect) return;
+  
+  const newItemsPerPage = parseInt(elements.itemsPerPageSelect.value, 10);
+  if (isNaN(newItemsPerPage) || newItemsPerPage <= 0) return;
+  
+  // 计算改变行数后，当前数据应该在第几页
+  const history = window.cachedHistory || [];
+  const currentFirstItemIndex = (currentPage - 1) * itemsPerPage;
+  
+  itemsPerPage = newItemsPerPage;
+  
+  // 计算新的页码
+  currentPage = Math.floor(currentFirstItemIndex / itemsPerPage) + 1;
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  currentPage = Math.max(1, Math.min(currentPage, totalPages));
+  
+  renderHistoryTable(history);
+}
+
+/**
+ * 绑定分页事件
+ */
+function bindPaginationEvents() {
+  if (elements.prevPageBtn) {
+    elements.prevPageBtn.addEventListener('click', () => changePage(-1));
+  }
+  
+  if (elements.nextPageBtn) {
+    elements.nextPageBtn.addEventListener('click', () => changePage(1));
+  }
+  
+  if (elements.pageJumpBtn) {
+    elements.pageJumpBtn.addEventListener('click', jumpToPage);
+  }
+  
+  if (elements.pageJumpInput) {
+    elements.pageJumpInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        jumpToPage();
+      }
+    });
+  }
+  
+  if (elements.itemsPerPageSelect) {
+    elements.itemsPerPageSelect.addEventListener('change', changeItemsPerPage);
+  }
+}
+
 async function init() {
   try {
     // 检查认证
@@ -955,13 +1349,17 @@ async function init() {
     initFileListEvents();
     initTranslationEvents();
     initHistoryTableEvents();
+    initKeyboardShortcuts();
+    bindPaginationEvents(); // 绑定分页事件
     
     // 加载历史记录
     await updateHistoryTable();
     
+    showToast('👋 欢迎使用PDF翻译器！', 'info');
+    
   } catch (error) {
     console.error('初始化失败:', error);
-    alert('初始化失败: ' + error.message);
+    showToast('初始化失败: ' + error.message, 'error');
   }
 }
 
