@@ -12,216 +12,202 @@
     <meta name="theme-color" content="#1a73e8" />
     <meta
       name="description"
-      content="IIR OCOMM - 医药信息检索平台" />
+      content="IIR OCOMM - FDA非活性成分数据库检索与药用辅料手册检索系统" />
     <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
-    <title>IIR OCOMM</title>
+    <title>IIR OCOMM - 首页</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/common/styles/main.css?v=1.1.1" />
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: 'Roboto', 'Arial', sans-serif;
-        background: #fff;
-        color: #202124;
-        height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-      }
-
-      .container {
-        width: 100%;
-        max-width: 800px;
-        padding: 20px;
+      .hero-section {
         text-align: center;
+        padding: 60px 24px 40px;
+        max-width: 800px;
+        margin: 0 auto;
       }
-
-      /* Logo和标题 */
-      .header {
-        margin-bottom: 48px;
-      }
-
-      .logo {
-        font-size: 64px;
-        font-weight: 300;
-        color: #1a73e8;
-        margin-bottom: 8px;
-        letter-spacing: -2px;
-      }
-
-      .subtitle {
-        font-size: 14px;
-        color: #5f6368;
+      
+      .hero-title {
+        font-size: 48px;
         font-weight: 400;
+        color: var(--google-grey-900);
+        margin-bottom: 16px;
+        letter-spacing: -1px;
       }
-
-      /* 系统卡片 */
-      .systems {
+      
+      .hero-subtitle {
+        font-size: 18px;
+        color: var(--google-grey-600);
+        margin-bottom: 48px;
+        line-height: 1.6;
+      }
+      
+      .cards-container {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 24px;
-        margin-bottom: 40px;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 24px 60px;
       }
-
-      .card {
-        background: #fff;
-        border: 1px solid #dadce0;
-        border-radius: 8px;
-        padding: 32px 24px;
+      
+      .system-card {
+        background: var(--google-white);
+        border: 1px solid var(--google-grey-200);
+        border-radius: var(--border-radius);
+        padding: 32px;
+        box-shadow: var(--box-shadow);
+        transition: all 0.3s ease;
         text-decoration: none;
         color: inherit;
-        display: block;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
       }
-
-      .card:hover {
-        box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
-        border-color: #1a73e8;
+      
+      .system-card:hover {
+        box-shadow: var(--box-shadow-hover);
+        transform: translateY(-2px);
+        border-color: var(--google-blue);
       }
-
+      
       .card-icon {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 16px;
+        width: 48px;
+        height: 48px;
+        background: var(--google-blue);
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
+        color: var(--google-white);
       }
-
-      .card-icon svg {
-        width: 48px;
-        height: 48px;
-        fill: #1a73e8;
-      }
-
+      
       .card-title {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 500;
-        color: #202124;
-        margin-bottom: 8px;
+        color: var(--google-grey-900);
+        margin: 0;
       }
-
-      .card-desc {
+      
+      .card-description {
+        font-size: 14px;
+        color: var(--google-grey-600);
+        line-height: 1.6;
+        margin: 0;
+      }
+      
+      .card-features {
+        list-style: none;
+        padding: 0;
+        margin: 8px 0 0 0;
         font-size: 13px;
-        color: #5f6368;
-        line-height: 1.5;
+        color: var(--google-grey-700);
       }
-
-      /* 页脚 */
-      .footer {
-        font-size: 12px;
-        color: #5f6368;
+      
+      .card-features li {
+        padding: 4px 0;
+        position: relative;
+        padding-left: 20px;
       }
-
-      /* 响应式 */
+      
+      .card-features li:before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        color: var(--google-green);
+        font-weight: bold;
+      }
+      
       @media (max-width: 768px) {
-        body {
-          height: auto;
-          overflow: auto;
+        .hero-title {
+          font-size: 32px;
         }
-
-        .container {
-          padding: 40px 20px;
+        
+        .hero-subtitle {
+          font-size: 16px;
         }
-
-        .header {
-          margin-bottom: 32px;
-        }
-
-        .logo {
-          font-size: 48px;
-        }
-
-        .systems {
+        
+        .cards-container {
           grid-template-columns: 1fr;
-          gap: 16px;
-          margin-bottom: 32px;
-        }
-
-        .card {
-          padding: 24px 20px;
-        }
-
-        .card-icon {
-          width: 48px;
-          height: 48px;
-        }
-
-        .card-icon svg {
-          width: 40px;
-          height: 40px;
-        }
-      }
-
-      @media (max-height: 700px) {
-        .header {
-          margin-bottom: 32px;
-        }
-
-        .logo {
-          font-size: 48px;
-        }
-
-        .card {
-          padding: 24px 20px;
-        }
-
-        .card-icon {
-          width: 48px;
-          height: 48px;
-          margin-bottom: 12px;
-        }
-
-        .card-icon svg {
-          width: 40px;
-          height: 40px;
-        }
-
-        .systems {
-          margin-bottom: 24px;
         }
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="header">
-        <div class="logo">IIR OCOMM</div>
-        <div class="subtitle">医药信息检索平台</div>
-      </div>
-
-      <div class="systems">
-        <a href="/fda" class="card" target="_blank" rel="noopener noreferrer">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/>
-            </svg>
-          </div>
-          <div class="card-title">FDA 非活性成分</div>
-          <div class="card-desc">156,000+ 条数据记录</div>
+    <!-- 全局导航栏 -->
+    <nav class="main-nav">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 7H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 12H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          IIR OCOMM
         </a>
-
-        <a href="/handbook" class="card" target="_blank" rel="noopener noreferrer">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18,2H12V9L9.5,7.5L7,9V2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V4A2,2 0 0,0 18,2Z"/>
-            </svg>
-          </div>
-          <div class="card-title">药用辅料手册</div>
-          <div class="card-desc">300+ 份技术文档</div>
-        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link active">首页</a>
+          <a href="/fda" class="nav-link">FDA检索</a>
+          <a href="/handbook" class="nav-link">辅料手册</a>
+        </div>
       </div>
+    </nav>
 
-      <div class="footer">
-        © 2025 IIR OCOMM
-      </div>
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <h1 class="hero-title">IIR OCOMM</h1>
+      <p class="hero-subtitle">
+        Inactive Ingredient Reference - Open Comprehensive Online Medical Materials<br/>
+        非活性成分参考 - 开放综合在线医药材料库
+      </p>
     </div>
+
+    <!-- System Cards -->
+    <div class="cards-container">
+      <!-- FDA检索卡片 -->
+      <a href="/fda" class="system-card">
+        <div class="card-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 16V8C20.9996 7.64927 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64927 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3.27002 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="card-title">FDA 非活性成分数据库检索</h2>
+        <p class="card-description">
+          查询FDA批准的非活性成分信息，包含约15万条记录，支持中英文搜索和批量查询
+        </p>
+        <ul class="card-features">
+          <li>多字段搜索：成分名称、给药途径、剂型、CAS号、UNII</li>
+          <li>中英文对照支持</li>
+          <li>分号分隔批量搜索</li>
+          <li>智能缓存，快速加载</li>
+          <li>结果导出为Excel</li>
+        </ul>
+      </a>
+
+      <!-- 辅料手册卡片 -->
+      <a href="/handbook" class="system-card">
+        <div class="card-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 class="card-title">药用辅料手册检索</h2>
+        <p class="card-description">
+          浏览和搜索药用辅料手册文档，提供中英文双语PDF在线预览和下载
+        </p>
+        <ul class="card-features">
+          <li>英文关键词模糊搜索</li>
+          <li>分号分隔批量搜索</li>
+          <li>中英文双语PDF文档</li>
+          <li>在线预览和下载</li>
+          <li>按编号和名称组织</li>
+        </ul>
+      </a>
+    </div>
+
   </body>
 </html>

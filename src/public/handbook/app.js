@@ -2,6 +2,19 @@
 let allPdfList = [];
 let filteredPdfList = [];
 
+// ============================================
+// 工具函数
+// ============================================
+
+/**
+ * 解析分号分隔的关键词字符串
+ * @param {string} input - 输入字符串，可能包含分号分隔的多个关键词
+ * @returns {string[]} - 关键词数组
+ */
+function parseKeywords(input) {
+  return input ? input.split(/[;；]/).map(k => k.trim()).filter(k => k) : [];
+}
+
 // DOM元素
 const searchInput = document.getElementById('handbook-search');
 const searchBtn = document.getElementById('search-btn');
@@ -64,10 +77,7 @@ function performSearch() {
     filteredPdfList = allPdfList;
   } else {
     // 解析分号分隔的批量搜索
-    const keywords = keyword
-      .split(/[;；]/)
-      .map(k => k.trim())
-      .filter(k => k);
+    const keywords = parseKeywords(keyword);
     
     // 模糊搜索：匹配文件名或编号（支持批量）
     filteredPdfList = allPdfList.filter(pdf => {

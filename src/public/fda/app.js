@@ -2,7 +2,7 @@
 let allData = [];
 let filteredData = [];
 let currentPage = 1;
-const itemsPerPage = 50;
+let itemsPerPage = 50; // 改为变量，支持用户自定义每页行数
 let fieldMapping = {};
 
 // 缓存配置
@@ -12,6 +12,64 @@ const CACHE_CONFIG = {
   EXPIRY_KEY: "iir_ocomm_cache_expiry",
   DEFAULT_EXPIRY_HOURS: 24, // 默认缓存24小时
 };
+
+// ============================================
+// 字段名常量
+// ============================================
+
+const FIELD_NAMES = {
+  // 英文字段
+  INGREDIENT_NAME: 'INGREDIENT_NAME',
+  ROUTE: 'ROUTE',
+  DOSAGE_FORM: 'DOSAGE_FORM',
+  CAS_NUMBER: 'CAS_NUMBER',
+  UNII: 'UNII',
+  POTENCY_AMOUNT: 'POTENCY_AMOUNT',
+  POTENCY_UNIT: 'POTENCY_UNIT',
+  MAXIMUM_DAILY_EXPOSURE: 'MAXIMUM_DAILY_EXPOSURE',
+  MAXIMUM_DAILY_EXPOSURE_UNIT: 'MAXIMUM_DAILY_EXPOSURE_UNIT',
+  RECORD_UPDATED: 'RECORD_UPDATED',
+  
+  // 中文字段
+  INGREDIENT_NAME_CN: 'INGREDIENT_NAME(中文名)',
+  ROUTE_CN: 'ROUTE(中文名)',
+  DOSAGE_FORM_CN: 'DOSAGE_FORM(中文名)',
+  
+  // 解释说明字段
+  ROUTE_EXPLANATION: 'ROUTE 解释说明 (Explanation)',
+  DOSAGE_FORM_EXPLANATION: 'DOSAGE_FORM 解释说明 (Explanation)'
+};
+
+// ============================================
+// 工具函数
+// ============================================
+
+/**
+ * 解析分号分隔的关键词字符串
+ * @param {string} input - 输入字符串，可能包含分号分隔的多个关键词
+ * @returns {string[]} - 关键词数组
+ */
+function parseKeywords(input) {
+  return input ? input.split(/[;；]/).map(k => k.trim()).filter(k => k) : [];
+}
+
+/**
+ * 从数据中提取唯一值及其翻译
+ * @param {Array} data - 数据数组
+ * @param {string} field - 要提取的字段名
+ * @param {string} translationField - 翻译字段名
+ * @returns {Map} - 值到翻译的映射
+ */
+function extractUniqueValues(data, field, translationField) {
+  const valueMap = new Map();
+  data.forEach(item => {
+    if (item[field]) {
+      const translation = item[translationField] || "";
+      valueMap.set(item[field], translation);
+    }
+  });
+  return valueMap;
+}
 
 // DOM元素
 const elements = {
@@ -23,13 +81,14 @@ const elements = {
   uniiSearch: document.getElementById("unii-search"),
   searchBtn: document.getElementById("search-btn"),
   resetBtn: document.getElementById("reset-btn"),
-  refreshCacheBtn: document.getElementById("refresh-cache-btn"),
-  cacheInfoBtn: document.getElementById("cache-info-btn"),
   downloadBtn: document.getElementById("download-btn"),
   resultsCount: document.getElementById("results-count"),
   pageInfo: document.getElementById("page-info"),
   prevPageBtn: document.getElementById("prev-page"),
   nextPageBtn: document.getElementById("next-page"),
+  pageJumpInput: document.getElementById("page-jump-input"),
+  pageJumpBtn: document.getElementById("page-jump-btn"),
+  itemsPerPageSelect: document.getElementById("items-per-page"),
   resultsTable: document.getElementById("results-table"),
   resultsTbody: document.getElementById("results-tbody"),
   tooltip: document.getElementById("tooltip"),
@@ -37,6 +96,7 @@ const elements = {
 
 // 初始化应用
 async function initApp() {
+  const appStartTime = performance.now();
   showLoading(true);
 
   try {
@@ -44,12 +104,17 @@ async function initApp() {
     await Promise.all([loadData(), loadFieldMapping()]);
 
     // 初始化UI
+    const uiStartTime = performance.now();
     initializeDropdowns();
     bindEvents();
 
     // 显示所有数据
     filteredData = [...allData];
     displayResults();
+    
+    const totalTime = (performance.now() - appStartTime).toFixed(0);
+    const uiTime = (performance.now() - uiStartTime).toFixed(0);
+    console.log(`✅ 应用初始化完成，总耗时 ${totalTime}ms (UI渲染 ${uiTime}ms)`);
   } catch (error) {
     console.error("初始化失败:", error);
     alert("数据加载失败，请刷新页面重试");
@@ -58,98 +123,145 @@ async function initApp() {
   }
 }
 
-// 缓存管理函数
-const CacheManager = {
-  // 检查缓存是否有效
-  isCacheValid() {
-    try {
-      const expiry = localStorage.getItem(CACHE_CONFIG.EXPIRY_KEY);
-      if (!expiry) return false;
+// ============================================
+// 存储层 - 纯粹的localStorage操作
+// ============================================
 
-      const expiryTime = new Date(expiry);
-      const now = new Date();
-      return now < expiryTime;
-    } catch (error) {
-      console.warn("缓存过期检查失败:", error);
-      return false;
-    }
-  },
-
-  // 从缓存获取数据
-  getFromCache(key) {
+const StorageManager = {
+  get(key) {
     try {
+      const startTime = performance.now();
       const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : null;
+      if (!data) return null;
+      
+      const result = JSON.parse(data);
+      const parseTime = (performance.now() - startTime).toFixed(0);
+      console.log(`📖 localStorage读取 (${key}): ${parseTime}ms, ${(data.length / 1024 / 1024).toFixed(2)}MB`);
+      return result;
     } catch (error) {
-      console.warn(`从缓存获取数据失败 (${key}):`, error);
+      console.error(`❌ localStorage读取失败 (${key}):`, error);
+      // 数据损坏，删除它
+      try {
+        localStorage.removeItem(key);
+      } catch {}
       return null;
     }
   },
 
-  // 保存数据到缓存
-  saveToCache(key, data) {
+  set(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(data));
+      const startTime = performance.now();
+      const jsonString = JSON.stringify(value);
+      const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2);
+      
+      localStorage.setItem(key, jsonString);
+      
+      const saveTime = (performance.now() - startTime).toFixed(0);
+      console.log(`💾 localStorage写入 (${key}): ${saveTime}ms, ${sizeMB}MB`);
       return true;
     } catch (error) {
-      console.warn(`保存数据到缓存失败 (${key}):`, error);
-      // 如果存储空间不足，尝试清理缓存
+      console.error(`❌ localStorage写入失败 (${key}):`, error);
       if (error.name === "QuotaExceededError") {
-        this.clearCache();
+        console.error("⚠️ localStorage空间不足！尝试清理旧数据...");
+        // 尝试清理所有缓存后重试
+        this.clearAll();
         try {
-          localStorage.setItem(key, JSON.stringify(data));
+          localStorage.setItem(key, JSON.stringify(value));
+          console.log("✅ 清理后重试成功");
           return true;
-        } catch (retryError) {
-          console.error("重试缓存保存失败:", retryError);
+        } catch {
+          console.error("❌ 清理后仍然失败，localStorage不可用");
         }
       }
       return false;
     }
   },
 
-  // 设置缓存过期时间
-  setCacheExpiry(hours = CACHE_CONFIG.DEFAULT_EXPIRY_HOURS) {
+  remove(key) {
     try {
-      const expiry = new Date();
-      expiry.setHours(expiry.getHours() + hours);
-      localStorage.setItem(CACHE_CONFIG.EXPIRY_KEY, expiry.toISOString());
-    } catch (error) {
-      console.warn("设置缓存过期时间失败:", error);
-    }
-  },
-
-  // 清理所有缓存
-  clearCache() {
-    try {
-      Object.values(CACHE_CONFIG).forEach((key) => {
-        localStorage.removeItem(key);
-      });
-      console.log("缓存已清理");
+      localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.error("清理缓存失败:", error);
+      console.warn(`存储删除失败 (${key}):`, error);
       return false;
     }
   },
 
-  // 获取缓存大小信息
-  getCacheInfo() {
+  getSize(key) {
     try {
-      const dataString = localStorage.getItem(CACHE_CONFIG.DATA_KEY) || "";
-      // 使用 Blob 获取更准确的字节大小
-      const dataSize = new Blob([dataString]).size;
-
-      return {
-        dataSize: (dataSize / 1024 / 1024).toFixed(2) + " MB",
-        totalSize: (dataSize / 1024 / 1024).toFixed(2) + " MB",
-        isValid: this.isCacheValid(),
-        expiry: localStorage.getItem(CACHE_CONFIG.EXPIRY_KEY),
-      };
+      const dataString = localStorage.getItem(key) || "";
+      return new Blob([dataString]).size;
     } catch (error) {
-      console.warn("获取缓存信息失败:", error);
-      return null;
+      return 0;
     }
   },
+  
+  clearAll() {
+    try {
+      const keys = Object.keys(localStorage);
+      const ourKeys = keys.filter(k => k.startsWith('iir_ocomm'));
+      ourKeys.forEach(k => localStorage.removeItem(k));
+      console.log(`🗑️ 清理了${ourKeys.length}个缓存项`);
+    } catch (error) {
+      console.error("清理缓存失败:", error);
+    }
+  }
+};
+
+// ============================================
+// 缓存管理层 - 业务逻辑
+// ============================================
+
+const CacheManager = {
+  isCacheValid() {
+    const expiry = StorageManager.get(CACHE_CONFIG.EXPIRY_KEY);
+    return expiry && new Date() < new Date(expiry);
+  },
+
+  getData() {
+    if (!this.isCacheValid()) {
+      return null;
+    }
+    return StorageManager.get(CACHE_CONFIG.DATA_KEY);
+  },
+
+  saveData(data, hours = CACHE_CONFIG.DEFAULT_EXPIRY_HOURS) {
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + hours);
+
+    const dataStored = StorageManager.set(CACHE_CONFIG.DATA_KEY, data);
+    const expiryStored = StorageManager.set(CACHE_CONFIG.EXPIRY_KEY, expiry.toISOString());
+
+    if (dataStored && expiryStored) {
+      console.log("数据已缓存");
+      return true;
+    } else if (!dataStored) {
+      // 数据保存失败，尝试清理后重试
+      this.clearAll();
+      return StorageManager.set(CACHE_CONFIG.DATA_KEY, data) &&
+             StorageManager.set(CACHE_CONFIG.EXPIRY_KEY, expiry.toISOString());
+    }
+    return false;
+  },
+
+  clearAll() {
+    Object.values(CACHE_CONFIG).forEach(key => {
+      StorageManager.remove(key);
+    });
+    console.log("缓存已清理");
+  },
+
+  getInfo() {
+    const dataSize = StorageManager.getSize(CACHE_CONFIG.DATA_KEY);
+    const expiry = StorageManager.get(CACHE_CONFIG.EXPIRY_KEY);
+
+    return {
+      dataSize: (dataSize / 1024 / 1024).toFixed(2) + " MB",
+      totalSize: (dataSize / 1024 / 1024).toFixed(2) + " MB",
+      isValid: this.isCacheValid(),
+      expiry: expiry
+    };
+  }
 };
 
 // 加载数据 - 带缓存支持
@@ -157,27 +269,25 @@ async function loadData() {
   const loadingElement = elements.loading;
 
   try {
+    const startTime = performance.now();
+    
     // 首先尝试从缓存加载
-    if (CacheManager.isCacheValid()) {
-      const cachedData = CacheManager.getFromCache(CACHE_CONFIG.DATA_KEY);
-      if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
-        allData = cachedData;
-        console.log(`从缓存加载了 ${allData.length} 条记录`);
-        showCacheStatus("cache");
-        return;
-      }
+    const cachedData = CacheManager.getData();
+    if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+      allData = cachedData;
+      const loadTime = (performance.now() - startTime).toFixed(0);
+      console.log(`✅ 从缓存加载了 ${allData.length} 条记录，耗时 ${loadTime}ms`);
+      showCacheStatus("cache");
+      return;
     }
 
     // 缓存无效或不存在，从网络加载
-    console.log("从网络加载数据...");
+    console.log("⬇️ 缓存未命中，开始从网络下载数据...");
     showCacheStatus("downloading");
 
+    // 使用浏览器缓存策略：优先使用缓存，但检查新鲜度
     const response = await fetch("/fda/data/data.json", {
-      cache: "no-cache", // 确保获取最新数据
-      headers: {
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-      },
+      cache: "default",
     });
 
     if (!response.ok) {
@@ -185,21 +295,24 @@ async function loadData() {
     }
 
     allData = await response.json();
-    console.log(`从网络加载了 ${allData.length} 条记录`);
+    const downloadTime = (performance.now() - startTime).toFixed(0);
+    console.log(`⬇️ 从网络加载了 ${allData.length} 条记录，耗时 ${downloadTime}ms`);
 
     // 保存到缓存
-    if (CacheManager.saveToCache(CACHE_CONFIG.DATA_KEY, allData)) {
-      CacheManager.setCacheExpiry();
-      console.log("数据已缓存");
+    const saveStartTime = performance.now();
+    if (CacheManager.saveData(allData)) {
+      const saveTime = (performance.now() - saveStartTime).toFixed(0);
+      console.log(`💾 数据已缓存到localStorage，耗时 ${saveTime}ms`);
       showCacheStatus("cached");
     } else {
+      console.warn(`❌ 缓存保存失败（可能localStorage空间不足）`);
       showCacheStatus("network");
     }
   } catch (error) {
     console.error("加载数据失败:", error);
 
-    // 如果网络加载失败，尝试使用过期的缓存数据
-    const cachedData = CacheManager.getFromCache(CACHE_CONFIG.DATA_KEY);
+    // 如果网络加载失败，尝试使用过期的缓存数据（不检查有效期）
+    const cachedData = StorageManager.get(CACHE_CONFIG.DATA_KEY);
     if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
       allData = cachedData;
       console.log(`网络加载失败，使用缓存数据 ${allData.length} 条记录`);
@@ -229,31 +342,20 @@ async function loadFieldMapping() {
 
 // 初始化下拉框
 function initializeDropdowns() {
-  // 获取唯一的ROUTE值和对应的中文名
-  const routeMap = new Map();
-  allData.forEach((item) => {
-    if (item.ROUTE) {
-      const routeCn = item["ROUTE(中文名)"] || "";
-      routeMap.set(item.ROUTE, routeCn);
-    }
-  });
+  const dropdownStartTime = performance.now();
+  
+  // 给药途径下拉框
+  const routeMap = extractUniqueValues(allData, FIELD_NAMES.ROUTE, FIELD_NAMES.ROUTE_CN);
   const uniqueRoutes = [...routeMap.keys()].sort();
   populateDropdownWithTranslation(elements.routeSearch, uniqueRoutes, routeMap);
 
-  // 获取唯一的DOSAGE_FORM值和对应的中文名
-  const dosageFormMap = new Map();
-  allData.forEach((item) => {
-    if (item.DOSAGE_FORM) {
-      const dosageFormCn = item["DOSAGE_FORM(中文名)"] || "";
-      dosageFormMap.set(item.DOSAGE_FORM, dosageFormCn);
-    }
-  });
+  // 剂型下拉框
+  const dosageFormMap = extractUniqueValues(allData, FIELD_NAMES.DOSAGE_FORM, FIELD_NAMES.DOSAGE_FORM_CN);
   const uniqueDosageForms = [...dosageFormMap.keys()].sort();
-  populateDropdownWithTranslation(
-    elements.dosageFormSearch,
-    uniqueDosageForms,
-    dosageFormMap
-  );
+  populateDropdownWithTranslation(elements.dosageFormSearch, uniqueDosageForms, dosageFormMap);
+  
+  const dropdownTime = (performance.now() - dropdownStartTime).toFixed(0);
+  console.log(`🎛️ 下拉框初始化完成: ROUTE(${uniqueRoutes.length}项) + DOSAGE_FORM(${uniqueDosageForms.length}项)，耗时 ${dropdownTime}ms`);
 }
 
 // 填充下拉框
@@ -283,7 +385,8 @@ function populateDropdownWithTranslation(
     selectElement.removeChild(selectElement.lastChild);
   }
 
-  // 添加新选项
+  // 使用DocumentFragment批量插入（性能优化）
+  const fragment = document.createDocumentFragment();
   options.forEach((option) => {
     const optionElement = document.createElement("option");
     optionElement.value = option;
@@ -292,19 +395,37 @@ function populateDropdownWithTranslation(
     optionElement.textContent = translation
       ? `${translation} (${option})`
       : option;
-    selectElement.appendChild(optionElement);
+    fragment.appendChild(optionElement);
   });
+  
+  // 一次性插入所有选项（只触发1次重排）
+  selectElement.appendChild(fragment);
 }
 
 // 绑定事件
 function bindEvents() {
   elements.searchBtn.addEventListener("click", performSearch);
   elements.resetBtn.addEventListener("click", resetSearch);
-  elements.refreshCacheBtn.addEventListener("click", refreshCache);
-  elements.cacheInfoBtn.addEventListener("click", showCacheInfo);
   elements.downloadBtn.addEventListener("click", downloadResults);
   elements.prevPageBtn.addEventListener("click", () => changePage(-1));
   elements.nextPageBtn.addEventListener("click", () => changePage(1));
+  
+  // 页面跳转
+  if (elements.pageJumpBtn) {
+    elements.pageJumpBtn.addEventListener("click", jumpToPage);
+  }
+  if (elements.pageJumpInput) {
+    elements.pageJumpInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        jumpToPage();
+      }
+    });
+  }
+  
+  // 每页行数改变
+  if (elements.itemsPerPageSelect) {
+    elements.itemsPerPageSelect.addEventListener("change", changeItemsPerPage);
+  }
 
   // 回车键搜索
   [elements.ingredientSearch, elements.casSearch, elements.uniiSearch].forEach(
@@ -400,6 +521,8 @@ function announceToScreenReader(message) {
 
 // 执行搜索
 function performSearch() {
+  const searchStartTime = performance.now();
+  
   const filters = {
     ingredient: elements.ingredientSearch.value.trim().toLowerCase(),
     route: elements.routeSearch.value,
@@ -408,66 +531,55 @@ function performSearch() {
     unii: elements.uniiSearch.value.trim().toLowerCase(),
   };
 
-  // 解析分号分隔的批量搜索
-  const ingredientKeywords = filters.ingredient
-    ? filters.ingredient.split(/[;；]/).map(k => k.trim()).filter(k => k)
-    : [];
-  const casKeywords = filters.cas
-    ? filters.cas.split(/[;；]/).map(k => k.trim()).filter(k => k)
-    : [];
-  const uniiKeywords = filters.unii
-    ? filters.unii.split(/[;；]/).map(k => k.trim()).filter(k => k)
-    : [];
+  // 搜索配置 - 关键词搜索（支持批量）
+  const keywordSearches = [
+    {
+      keywords: parseKeywords(filters.ingredient),
+      matcher: (item, kw) => {
+        const name = (item[FIELD_NAMES.INGREDIENT_NAME] || "").toLowerCase();
+        const nameCn = (item[FIELD_NAMES.INGREDIENT_NAME_CN] || "").toLowerCase();
+        return name.includes(kw) || nameCn.includes(kw);
+      }
+    },
+    {
+      keywords: parseKeywords(filters.cas),
+      matcher: (item, kw) => String(item[FIELD_NAMES.CAS_NUMBER] || "").includes(kw)
+    },
+    {
+      keywords: parseKeywords(filters.unii),
+      matcher: (item, kw) => (item[FIELD_NAMES.UNII] || "").toLowerCase().includes(kw)
+    }
+  ];
+
+  // 精确匹配过滤（下拉框）
+  const exactFilters = [
+    { value: filters.route, field: FIELD_NAMES.ROUTE },
+    { value: filters.dosageForm, field: FIELD_NAMES.DOSAGE_FORM }
+  ];
 
   filteredData = allData.filter((item) => {
-    // 成分名称搜索（支持中英文，支持批量）
-    if (ingredientKeywords.length > 0) {
-      const ingredientName = (item.INGREDIENT_NAME || "").toLowerCase();
-      const ingredientNameCn = (
-        item["INGREDIENT_NAME(中文名)"] || ""
-      ).toLowerCase();
-      
-      const matched = ingredientKeywords.some(keyword => 
-        ingredientName.includes(keyword) || ingredientNameCn.includes(keyword)
-      );
-      
-      if (!matched) {
+    // 下拉框精确匹配
+    for (const filter of exactFilters) {
+      if (filter.value && item[filter.field] !== filter.value) {
         return false;
       }
     }
 
-    // 给药途径过滤
-    if (filters.route && item.ROUTE !== filters.route) {
-      return false;
-    }
-
-    // 剂型过滤
-    if (filters.dosageForm && item.DOSAGE_FORM !== filters.dosageForm) {
-      return false;
-    }
-
-    // CAS号搜索（支持批量）
-    if (casKeywords.length > 0) {
-      const casNumber = String(item.CAS_NUMBER || "");
-      const matched = casKeywords.some(keyword => casNumber.includes(keyword));
-      
-      if (!matched) {
-        return false;
-      }
-    }
-
-    // UNII搜索（支持批量）
-    if (uniiKeywords.length > 0) {
-      const unii = (item.UNII || "").toLowerCase();
-      const matched = uniiKeywords.some(keyword => unii.includes(keyword));
-      
-      if (!matched) {
-        return false;
+    // 关键词搜索（AND逻辑：所有有关键词的搜索都要匹配）
+    for (const search of keywordSearches) {
+      if (search.keywords.length > 0) {
+        const matched = search.keywords.some(kw => search.matcher(item, kw));
+        if (!matched) {
+          return false;
+        }
       }
     }
 
     return true;
   });
+
+  const filterTime = (performance.now() - searchStartTime).toFixed(0);
+  console.log(`🔍 搜索完成: ${allData.length}条 → ${filteredData.length}条，耗时 ${filterTime}ms`);
 
   currentPage = 1;
   displayResults();
@@ -501,6 +613,12 @@ function displayResults() {
   elements.pageInfo.textContent = `第 ${currentPage} 页，共 ${totalPages} 页`;
   elements.prevPageBtn.disabled = currentPage <= 1;
   elements.nextPageBtn.disabled = currentPage >= totalPages;
+  
+  // 更新页面跳转输入框
+  if (elements.pageJumpInput) {
+    elements.pageJumpInput.value = currentPage;
+    elements.pageJumpInput.max = totalPages;
+  }
 
   // 检测是否为移动端 - 使用更精确的检测
   const isMobile = isMobileDevice();
@@ -525,6 +643,8 @@ function displayResults() {
 
 // 显示桌面端表格
 function displayTable(currentItems) {
+  const renderStartTime = performance.now();
+  
   // 确保表格容器可见，隐藏移动端卡片
   const tableContainer = document.querySelector(".table-container");
   const mobileContainer = document.querySelector(".mobile-cards");
@@ -535,11 +655,18 @@ function displayTable(currentItems) {
   // 清空表格
   elements.resultsTbody.innerHTML = "";
 
-  // 填充表格数据
+  // 使用DocumentFragment批量插入（减少重排）
+  const fragment = document.createDocumentFragment();
   currentItems.forEach((item) => {
     const row = createTableRow(item);
-    elements.resultsTbody.appendChild(row);
+    fragment.appendChild(row);
   });
+  
+  // 一次性插入所有行（只触发1次重排）
+  elements.resultsTbody.appendChild(fragment);
+  
+  const renderTime = (performance.now() - renderStartTime).toFixed(0);
+  console.log(`📊 表格渲染完成: ${currentItems.length}行 × 10列，耗时 ${renderTime}ms`);
 }
 
 // 显示移动端卡片
@@ -570,67 +697,44 @@ function displayMobileCards(currentItems) {
   });
 }
 
-// 创建表格行
+// 创建表格行（使用innerHTML模板，性能更好）
 function createTableRow(item) {
   const row = document.createElement("tr");
-
-  // 成分名称（显示中英文）
-  const ingredientCell = document.createElement("td");
-  const ingredientName = item.INGREDIENT_NAME || "";
-  const ingredientNameCn = item["INGREDIENT_NAME(中文名)"] || "";
-  ingredientCell.innerHTML = ingredientNameCn
-    ? `${ingredientNameCn}<br><small style="color: #666;">${ingredientName}</small>`
-    : ingredientName;
-  row.appendChild(ingredientCell);
-
-  // 给药途径（带提示）
-  const routeCell = document.createElement("td");
-  routeCell.className = "route-cell";
-  const routeName = item.ROUTE || "";
-  const routeNameCn = item["ROUTE(中文名)"] || "";
-  const routeExplanation = item["ROUTE 解释说明 (Explanation)"] || "";
-  routeCell.innerHTML = routeNameCn
-    ? `${routeNameCn}<br><small style="color: #666;">${routeName}</small>`
-    : routeName;
-  if (routeExplanation) {
-    routeCell.setAttribute("data-tooltip", routeExplanation);
-  }
-  row.appendChild(routeCell);
-
-  // 剂型（带提示）
-  const dosageFormCell = document.createElement("td");
-  dosageFormCell.className = "dosage-form-cell";
-  const dosageFormName = item.DOSAGE_FORM || "";
-  const dosageFormNameCn = item["DOSAGE_FORM(中文名)"] || "";
-  const dosageFormExplanation =
-    item["DOSAGE_FORM 解释说明 (Explanation)"] || "";
-  dosageFormCell.innerHTML = dosageFormNameCn
-    ? `${dosageFormNameCn}<br><small style="color: #666;">${dosageFormName}</small>`
-    : dosageFormName;
-  if (dosageFormExplanation) {
-    dosageFormCell.setAttribute("data-tooltip", dosageFormExplanation);
-  }
-  row.appendChild(dosageFormCell);
-
-  // 其他字段
-  const fields = [
-    "CAS_NUMBER",
-    "UNII",
-    "POTENCY_AMOUNT",
-    "POTENCY_UNIT",
-    "MAXIMUM_DAILY_EXPOSURE",
-    "MAXIMUM_DAILY_EXPOSURE_UNIT",
-    "RECORD_UPDATED",
-  ];
-
-  fields.forEach((field) => {
-    const cell = document.createElement("td");
-    const value = item[field];
-    cell.textContent = value !== null && value !== undefined ? value : "";
-    row.appendChild(cell);
-  });
+  
+  // 提取所有数据
+  const ingredientName = item[FIELD_NAMES.INGREDIENT_NAME] || "";
+  const ingredientNameCn = item[FIELD_NAMES.INGREDIENT_NAME_CN] || "";
+  const routeName = item[FIELD_NAMES.ROUTE] || "";
+  const routeNameCn = item[FIELD_NAMES.ROUTE_CN] || "";
+  const routeExplanation = item[FIELD_NAMES.ROUTE_EXPLANATION] || "";
+  const dosageFormName = item[FIELD_NAMES.DOSAGE_FORM] || "";
+  const dosageFormNameCn = item[FIELD_NAMES.DOSAGE_FORM_CN] || "";
+  const dosageFormExplanation = item[FIELD_NAMES.DOSAGE_FORM_EXPLANATION] || "";
+  
+  // 使用innerHTML一次性创建所有单元格（性能优化）
+  row.innerHTML = `
+    <td>${ingredientNameCn ? `${escapeHtml(ingredientNameCn)}<br><small style="color: #666;">${escapeHtml(ingredientName)}</small>` : escapeHtml(ingredientName)}</td>
+    <td class="route-cell"${routeExplanation ? ` data-tooltip="${escapeHtml(routeExplanation)}"` : ''}>${routeNameCn ? `${escapeHtml(routeNameCn)}<br><small style="color: #666;">${escapeHtml(routeName)}</small>` : escapeHtml(routeName)}</td>
+    <td class="dosage-form-cell"${dosageFormExplanation ? ` data-tooltip="${escapeHtml(dosageFormExplanation)}"` : ''}>${dosageFormNameCn ? `${escapeHtml(dosageFormNameCn)}<br><small style="color: #666;">${escapeHtml(dosageFormName)}</small>` : escapeHtml(dosageFormName)}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.CAS_NUMBER] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.UNII] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.POTENCY_AMOUNT] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.POTENCY_UNIT] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE_UNIT] || "")}</td>
+    <td>${escapeHtml(item[FIELD_NAMES.RECORD_UPDATED] || "")}</td>
+  `.trim();
 
   return row;
+}
+
+// HTML转义函数（防止XSS）
+function escapeHtml(text) {
+  if (text === null || text === undefined) return "";
+  const str = String(text);
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // 创建移动端卡片
@@ -644,8 +748,8 @@ function createMobileCard(item) {
   // 卡片标题（成分名称）
   const header = document.createElement("div");
   header.className = "mobile-card-header";
-  const ingredientName = item.INGREDIENT_NAME || "";
-  const ingredientNameCn = item["INGREDIENT_NAME(中文名)"] || "";
+  const ingredientName = item[FIELD_NAMES.INGREDIENT_NAME] || "";
+  const ingredientNameCn = item[FIELD_NAMES.INGREDIENT_NAME_CN] || "";
 
   // 创建标题内容
   const titleText = ingredientNameCn ? `${ingredientNameCn}` : ingredientName;
@@ -687,19 +791,18 @@ function createMobileCard(item) {
   }
 
   // 给药途径
-  const routeName = item.ROUTE || "";
-  const routeNameCn = item["ROUTE(中文名)"] || "";
-  const routeExplanation = item["ROUTE 解释说明 (Explanation)"] || "";
+  const routeName = item[FIELD_NAMES.ROUTE] || "";
+  const routeNameCn = item[FIELD_NAMES.ROUTE_CN] || "";
+  const routeExplanation = item[FIELD_NAMES.ROUTE_EXPLANATION] || "";
   const routeDisplay = routeNameCn
     ? `${routeNameCn}<br><small style="color: #666;">${routeName}</small>`
     : routeName;
   card.appendChild(createCardRow("给药途径", routeDisplay, routeExplanation));
 
   // 剂型
-  const dosageFormName = item.DOSAGE_FORM || "";
-  const dosageFormNameCn = item["DOSAGE_FORM(中文名)"] || "";
-  const dosageFormExplanation =
-    item["DOSAGE_FORM 解释说明 (Explanation)"] || "";
+  const dosageFormName = item[FIELD_NAMES.DOSAGE_FORM] || "";
+  const dosageFormNameCn = item[FIELD_NAMES.DOSAGE_FORM_CN] || "";
+  const dosageFormExplanation = item[FIELD_NAMES.DOSAGE_FORM_EXPLANATION] || "";
   const dosageFormDisplay = dosageFormNameCn
     ? `${dosageFormNameCn}<br><small style="color: #666;">${dosageFormName}</small>`
     : dosageFormName;
@@ -708,15 +811,15 @@ function createMobileCard(item) {
   );
 
   // 其他字段
-  card.appendChild(createCardRow("CAS号", item.CAS_NUMBER));
-  card.appendChild(createCardRow("UNII", item.UNII));
-  card.appendChild(createCardRow("效价量", item.POTENCY_AMOUNT));
-  card.appendChild(createCardRow("效价单位", item.POTENCY_UNIT));
-  card.appendChild(createCardRow("最大日暴露量", item.MAXIMUM_DAILY_EXPOSURE));
+  card.appendChild(createCardRow("CAS号", item[FIELD_NAMES.CAS_NUMBER]));
+  card.appendChild(createCardRow("UNII", item[FIELD_NAMES.UNII]));
+  card.appendChild(createCardRow("效价量", item[FIELD_NAMES.POTENCY_AMOUNT]));
+  card.appendChild(createCardRow("效价单位", item[FIELD_NAMES.POTENCY_UNIT]));
+  card.appendChild(createCardRow("最大日暴露量", item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE]));
   card.appendChild(
-    createCardRow("暴露量单位", item.MAXIMUM_DAILY_EXPOSURE_UNIT)
+    createCardRow("暴露量单位", item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE_UNIT])
   );
-  card.appendChild(createCardRow("记录更新时间", item.RECORD_UPDATED));
+  card.appendChild(createCardRow("记录更新时间", item[FIELD_NAMES.RECORD_UPDATED]));
 
   return card;
 }
@@ -748,6 +851,67 @@ function changePage(direction) {
       }
     });
   }
+}
+
+// 跳转到指定页面
+function jumpToPage() {
+  if (!elements.pageJumpInput) return;
+  
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const targetPage = parseInt(elements.pageJumpInput.value, 10);
+  
+  // 验证输入
+  if (isNaN(targetPage) || targetPage < 1 || targetPage > totalPages) {
+    alert(`请输入有效的页码（1-${totalPages}）`);
+    elements.pageJumpInput.value = currentPage;
+    return;
+  }
+  
+  if (targetPage === currentPage) {
+    return; // 已经在目标页，无需跳转
+  }
+  
+  // 显示加载状态
+  if (isMobileDevice()) {
+    showPageLoading(true);
+  }
+  
+  currentPage = targetPage;
+  
+  requestAnimationFrame(() => {
+    displayResults();
+    
+    if (isMobileDevice()) {
+      showPageLoading(false);
+      const resultsHeader = document.querySelector(".results-header");
+      if (resultsHeader) {
+        smoothScrollToElement(resultsHeader, 20);
+      }
+    }
+  });
+}
+
+// 改变每页显示行数
+function changeItemsPerPage() {
+  if (!elements.itemsPerPageSelect) return;
+  
+  const newItemsPerPage = parseInt(elements.itemsPerPageSelect.value, 10);
+  if (isNaN(newItemsPerPage) || newItemsPerPage <= 0) return;
+  
+  // 计算改变行数后，当前数据应该在第几页
+  // 保持用户当前浏览的数据位置尽量不变
+  const currentFirstItemIndex = (currentPage - 1) * itemsPerPage;
+  
+  itemsPerPage = newItemsPerPage;
+  
+  // 计算新的页码（确保不越界）
+  currentPage = Math.floor(currentFirstItemIndex / itemsPerPage) + 1;
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  currentPage = Math.max(1, Math.min(currentPage, totalPages));
+  
+  console.log(`每页行数已改为 ${itemsPerPage} 条`);
+  
+  displayResults();
 }
 
 // 显示分页加载状态
@@ -938,113 +1102,12 @@ function showLoading(show) {
   elements.resultsTable.style.opacity = show ? "0.5" : "1";
 }
 
-// 显示缓存状态
+// 缓存状态（静默模式 - 无UI展示）
 function showCacheStatus(status) {
-  // 移除现有的缓存状态提示
-  const existingStatus = document.querySelector(".cache-status");
-  if (existingStatus) {
-    existingStatus.remove();
-  }
-
-  let message = "";
-  let className = "cache-status";
-
-  switch (status) {
-    case "cache":
-      message = "📁 从本地缓存加载";
-      className += " cache-hit";
-      break;
-    case "downloading":
-      message = "⬇️ 正在下载最新数据...";
-      className += " cache-downloading";
-      break;
-    case "cached":
-      message = "✅ 数据已缓存到本地";
-      className += " cache-success";
-      break;
-    case "network":
-      message = "🌐 从网络加载（缓存失败）";
-      className += " cache-network";
-      break;
-    case "offline":
-      message = "⚠️ 网络连接失败，使用离线缓存";
-      className += " cache-offline";
-      break;
-    default:
-      return;
-  }
-
-  // 创建状态提示元素
-  const statusElement = document.createElement("div");
-  statusElement.className = className;
-  statusElement.textContent = message;
-
-  // 插入到结果计数的旁边
-  const resultsCount = elements.resultsCount;
-  if (resultsCount && resultsCount.parentNode) {
-    resultsCount.parentNode.insertBefore(
-      statusElement,
-      resultsCount.nextSibling
-    );
-  }
-
-  // 3秒后自动隐藏（除了离线状态）
-  if (status !== "offline") {
-    setTimeout(() => {
-      if (statusElement.parentNode) {
-        statusElement.remove();
-      }
-    }, 3000);
-  }
+  // 缓存在后台静默工作，不显示任何UI
+  console.log(`缓存状态: ${status}`);
 }
 
-// 手动刷新缓存
-async function refreshCache() {
-  try {
-    showLoading(true);
-    showCacheStatus("downloading");
-
-    // 清除现有缓存
-    CacheManager.clearCache();
-
-    // 重新加载数据
-    await Promise.all([loadData(), loadFieldMapping()]);
-
-    // 重新初始化界面
-    initializeDropdowns();
-    filteredData = [...allData];
-    displayResults();
-
-    showCacheStatus("cached");
-    console.log("缓存刷新完成");
-  } catch (error) {
-    console.error("刷新缓存失败:", error);
-    alert("刷新缓存失败，请检查网络连接");
-  } finally {
-    showLoading(false);
-  }
-}
-
-// 显示缓存信息
-function showCacheInfo() {
-  const info = CacheManager.getCacheInfo();
-  if (!info) {
-    alert("无法获取缓存信息");
-    return;
-  }
-
-  const isValid = info.isValid ? "有效" : "已过期";
-  const expiry = info.expiry
-    ? new Date(info.expiry).toLocaleString("zh-CN")
-    : "未设置";
-
-  const message = `缓存信息：
-• 数据大小：${info.dataSize}
-• 状态：${isValid}
-• 过期时间：${expiry}`;
-
-  alert(message);
-}
 
 // 下载搜索结果为Excel文件
 function downloadResults() {
