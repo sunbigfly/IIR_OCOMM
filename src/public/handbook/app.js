@@ -63,10 +63,16 @@ function performSearch() {
   if (!keyword) {
     filteredPdfList = allPdfList;
   } else {
-    // 模糊搜索：匹配文件名或编号
+    // 解析逗号分隔的批量搜索
+    const keywords = keyword
+      .split(/[,，]/)
+      .map(k => k.trim())
+      .filter(k => k);
+    
+    // 模糊搜索：匹配文件名或编号（支持批量）
     filteredPdfList = allPdfList.filter(pdf => {
       const searchText = `${pdf.prefix} ${pdf.name} ${pdf.enFile}`.toLowerCase();
-      return searchText.includes(keyword);
+      return keywords.some(kw => searchText.includes(kw));
     });
   }
   
