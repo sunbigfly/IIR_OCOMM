@@ -368,6 +368,102 @@ force_cleanup() {
     fi
 }
 
+# 初始化部署环境
+setup_environment() {
+    log_info "开始初始化部署环境..."
+    
+    # 检查项目目录
+    if [ ! -f "$CURRENT_DIR/package.json" ]; then
+        log_error "未找到 package.json，请确保在项目根目录运行"
+        exit 1
+    fi
+    
+    # 1. 安装 Node.js 依赖
+    log_info "步骤 1/3: 安装 Node.js 依赖..."
+    if command -v npm >/dev/null 2>&1; then
+        cd "$CURRENT_DIR"
+        npm install
+        log_success "Node.js 依赖安装完成"
+    else
+        log_error "npm 未安装，请先安装 Node.js"
+        exit 1
+    fi
+    
+    # 2. 检查 Python
+    log_info "步骤 2/3: 检查 Python 环境..."
+    if ! command -v python3 >/dev/null 2>&1; then
+        log_error "python3 未安装，请先安装 Python 3"
+        exit 1
+    fi
+    
+    local python_version=$(python3 --version 2>&1 | awk '{print $2}')
+    log_info "Python 版本: $python_version"
+    
+    # 3. 安装 pdf2zh-next
+    log_info "步骤 3/3: 安装 pdf2zh-next..."
+    
+    # 检查 pip
+    if ! command -v pip >/dev/null 2>&1 && ! command -v pip3 >/dev/null 2>&1; then
+        log_error "pip 未安装，请先安装 pip"
+        exit 1
+    fi
+    
+    local pip_cmd="pip3"
+    if command -v pip >/dev/null 2>&1; then
+        pip_cmd="pip"
+    fi
+    
+    # 安装 uv
+    log_info "安装 uv..."
+    if command -v uv >/dev/null 2>&1; then
+        log_success "uv 已安装"
+    else
+        $pip_cmd install --user uv
+        log_success "uv 安装完成"
+    fi
+    
+    # 使用 uv 安装 pdf2zh-next
+    log_info "使用 uv 安装 pdf2zh-next..."
+    if command -v uv >/dev/null 2>&1; then
+        uv tool install --python 3.12 pdf2zh-next
+        log_success "pdf2zh-next 安装完成"
+    else
+        log_error "uv 安装失败，请手动执行: pip install uv && uv tool install --python 3.12 pdf2zh-next"
+        exit 1
+    fi
+    
+    # 4. 验证安装
+    log_info "验证安装..."
+    echo ""
+    
+    # 验证 Node.js
+    if command -v node >/dev/null 2>&1; then
+        log_success "✓ Node.js: $(node --version)"
+    else
+        log_error "✗ Node.js 未安装"
+    fi
+    
+    # 验证 pdf2zh_next
+    if command -v pdf2zh_next >/dev/null 2>&1; then
+        log_success "✓ pdf2zh_next: 已安装"
+    else
+        log_warning "✗ pdf2zh_next 未找到，可能需要添加到 PATH"
+        log_info "  请将 uv 工具目录添加到 PATH，通常是: ~/.local/bin"
+        log_info "  执行: export PATH=\"\$HOME/.local/bin:\$PATH\""
+    fi
+    
+    echo ""
+    log_success "========================================="
+    log_success "  环境初始化完成！"
+    log_success "========================================="
+    echo ""
+    log_info "下一步操作："
+    echo "  1. 启动服务: npm start"
+    echo "  2. 访问地址: http://localhost:8000"
+    echo "  3. 安装系统服务: sudo $0 install"
+    echo ""
+}
+
 # 显示帮助信息
 show_help() {
     echo "IIR OCOMM 系统服务管理脚本"
@@ -375,6 +471,7 @@ show_help() {
     echo "用法: $0 [命令]"
     echo ""
     echo "命令:"
+    echo "  setup      初始化部署环境（安装依赖和pdf2zh-next）"
     echo "  install    安装系统服务"
     echo "  uninstall  卸载系统服务"
     echo "  start      启动服务"
@@ -386,17 +483,26 @@ show_help() {
     echo "  help       显示此帮助信息"
     echo ""
     echo "示例:"
+    echo "  $0 setup            # 初始化环境（首次部署）"
     echo "  sudo $0 install     # 安装服务"
     echo "  sudo $0 start       # 启动服务"
     echo "  $0 status           # 查看状态（无需 sudo）"
     echo "  $0 logs             # 查看日志（无需 sudo）"
     echo "  $0 cleanup          # 强制清理进程（无需 sudo）"
     echo "  sudo $0 uninstall   # 卸载服务"
+    echo ""
+    echo "快速部署流程:"
+    echo "  1. $0 setup         # 安装所有依赖"
+    echo "  2. npm start        # 测试运行"
+    echo "  3. sudo $0 install  # 安装为系统服务（可选）"
 }
 
 # 主函数
 main() {
     case "${1:-help}" in
+        setup)
+            setup_environment
+            ;;
         install)
             install_service
             ;;

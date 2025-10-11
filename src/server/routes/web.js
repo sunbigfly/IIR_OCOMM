@@ -28,5 +28,10 @@ router.get('/handbook', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'handbook/index.html'));
 });
 
+// PDF翻译器页面
+router.get('/translator', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'translator/index.html'));
+});
+
 module.exports = router;
 

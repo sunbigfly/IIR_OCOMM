@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "setup": "npm install && echo '\\n提示：请手动安装 pdf2zh-next:\\n  pip install uv\\n  uv tool install --python 3.12 pdf2zh-next\\n'"
   },
   "keywords": [
     "iir",
@@ -24,6 +25,8 @@
     "node": ">=12.0.0"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "multer": "^2.0.2"
   }
 }

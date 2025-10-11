@@ -5,12 +5,28 @@
 
 const express = require('express');
 const path = require('path');
+const session = require('express-session');
 const config = require('./config');
 const registerRoutes = require('./routes');
 const logger = require('./utils/logger');
 
 function createApp() {
   const app = express();
+
+  // Session 配置 - 用于区分不同用户
+  app.use(session({
+    secret: 'pdf-translator-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { 
+      maxAge: 10 * 365 * 24 * 60 * 60 * 1000, // 10年（永久）
+      httpOnly: true,
+      secure: false // 开发环境用false，生产环境HTTPS用true
+    }
+  }));
+
+  // JSON body parser (用于API请求)
+  app.use(express.json());
 
   // 静态文件服务 - common目录（共享资源）
   app.use('/common', express.static(path.join(config.publicDir, 'common'), {
@@ -34,6 +50,17 @@ function createApp() {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.html')) {
         res.set('Cache-Control', config.cache.html);
+      }
+    }
+  }));
+
+  // 静态文件服务 - translator目录（包含HTML和uploads子目录）
+  app.use('/translator', express.static(path.join(config.publicDir, 'translator'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.set('Cache-Control', config.cache.html);
+      } else if (filePath.endsWith('.pdf')) {
+        res.set('Content-Type', 'application/pdf');
       }
     }
   }));
