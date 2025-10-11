@@ -96,7 +96,6 @@ const elements = {
 
 // 初始化应用
 async function initApp() {
-  const appStartTime = performance.now();
   showLoading(true);
 
   try {
@@ -104,17 +103,12 @@ async function initApp() {
     await Promise.all([loadData(), loadFieldMapping()]);
 
     // 初始化UI
-    const uiStartTime = performance.now();
     initializeDropdowns();
     bindEvents();
 
     // 显示所有数据
     filteredData = [...allData];
     displayResults();
-    
-    const totalTime = (performance.now() - appStartTime).toFixed(0);
-    const uiTime = (performance.now() - uiStartTime).toFixed(0);
-    console.log(`✅ 应用初始化完成，总耗时 ${totalTime}ms (UI渲染 ${uiTime}ms)`);
   } catch (error) {
     console.error("初始化失败:", error);
     alert("数据加载失败，请刷新页面重试");
@@ -130,13 +124,10 @@ async function initApp() {
 const StorageManager = {
   get(key) {
     try {
-      const startTime = performance.now();
       const data = localStorage.getItem(key);
       if (!data) return null;
       
       const result = JSON.parse(data);
-      const parseTime = (performance.now() - startTime).toFixed(0);
-      console.log(`📖 localStorage读取 (${key}): ${parseTime}ms, ${(data.length / 1024 / 1024).toFixed(2)}MB`);
       return result;
     } catch (error) {
       console.error(`❌ localStorage读取失败 (${key}):`, error);
@@ -150,14 +141,8 @@ const StorageManager = {
 
   set(key, value) {
     try {
-      const startTime = performance.now();
       const jsonString = JSON.stringify(value);
-      const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2);
-      
       localStorage.setItem(key, jsonString);
-      
-      const saveTime = (performance.now() - startTime).toFixed(0);
-      console.log(`💾 localStorage写入 (${key}): ${saveTime}ms, ${sizeMB}MB`);
       return true;
     } catch (error) {
       console.error(`❌ localStorage写入失败 (${key}):`, error);
@@ -167,7 +152,6 @@ const StorageManager = {
         this.clearAll();
         try {
           localStorage.setItem(key, JSON.stringify(value));
-          console.log("✅ 清理后重试成功");
           return true;
         } catch {
           console.error("❌ 清理后仍然失败，localStorage不可用");
@@ -182,7 +166,6 @@ const StorageManager = {
       localStorage.removeItem(key);
       return true;
     } catch (error) {
-      console.warn(`存储删除失败 (${key}):`, error);
       return false;
     }
   },
@@ -201,7 +184,6 @@ const StorageManager = {
       const keys = Object.keys(localStorage);
       const ourKeys = keys.filter(k => k.startsWith('iir_ocomm'));
       ourKeys.forEach(k => localStorage.removeItem(k));
-      console.log(`🗑️ 清理了${ourKeys.length}个缓存项`);
     } catch (error) {
       console.error("清理缓存失败:", error);
     }
@@ -233,7 +215,6 @@ const CacheManager = {
     const expiryStored = StorageManager.set(CACHE_CONFIG.EXPIRY_KEY, expiry.toISOString());
 
     if (dataStored && expiryStored) {
-      console.log("数据已缓存");
       return true;
     } else if (!dataStored) {
       // 数据保存失败，尝试清理后重试
@@ -248,7 +229,6 @@ const CacheManager = {
     Object.values(CACHE_CONFIG).forEach(key => {
       StorageManager.remove(key);
     });
-    console.log("缓存已清理");
   },
 
   getInfo() {
@@ -269,20 +249,15 @@ async function loadData() {
   const loadingElement = elements.loading;
 
   try {
-    const startTime = performance.now();
-    
     // 首先尝试从缓存加载
     const cachedData = CacheManager.getData();
     if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
       allData = cachedData;
-      const loadTime = (performance.now() - startTime).toFixed(0);
-      console.log(`✅ 从缓存加载了 ${allData.length} 条记录，耗时 ${loadTime}ms`);
       showCacheStatus("cache");
       return;
     }
 
     // 缓存无效或不存在，从网络加载
-    console.log("⬇️ 缓存未命中，开始从网络下载数据...");
     showCacheStatus("downloading");
 
     // 使用浏览器缓存策略：优先使用缓存，但检查新鲜度
@@ -295,17 +270,11 @@ async function loadData() {
     }
 
     allData = await response.json();
-    const downloadTime = (performance.now() - startTime).toFixed(0);
-    console.log(`⬇️ 从网络加载了 ${allData.length} 条记录，耗时 ${downloadTime}ms`);
 
     // 保存到缓存
-    const saveStartTime = performance.now();
     if (CacheManager.saveData(allData)) {
-      const saveTime = (performance.now() - saveStartTime).toFixed(0);
-      console.log(`💾 数据已缓存到localStorage，耗时 ${saveTime}ms`);
       showCacheStatus("cached");
     } else {
-      console.warn(`❌ 缓存保存失败（可能localStorage空间不足）`);
       showCacheStatus("network");
     }
   } catch (error) {
@@ -315,7 +284,6 @@ async function loadData() {
     const cachedData = StorageManager.get(CACHE_CONFIG.DATA_KEY);
     if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
       allData = cachedData;
-      console.log(`网络加载失败，使用缓存数据 ${allData.length} 条记录`);
       showCacheStatus("offline");
       return;
     }
@@ -332,7 +300,6 @@ async function loadFieldMapping() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     fieldMapping = await response.json();
-    console.log("字段映射加载完成");
   } catch (error) {
     console.error("加载字段映射失败:", error);
     // 如果加载失败，使用默认映射
@@ -342,8 +309,6 @@ async function loadFieldMapping() {
 
 // 初始化下拉框
 function initializeDropdowns() {
-  const dropdownStartTime = performance.now();
-  
   // 给药途径下拉框
   const routeMap = extractUniqueValues(allData, FIELD_NAMES.ROUTE, FIELD_NAMES.ROUTE_CN);
   const uniqueRoutes = [...routeMap.keys()].sort();
@@ -353,9 +318,6 @@ function initializeDropdowns() {
   const dosageFormMap = extractUniqueValues(allData, FIELD_NAMES.DOSAGE_FORM, FIELD_NAMES.DOSAGE_FORM_CN);
   const uniqueDosageForms = [...dosageFormMap.keys()].sort();
   populateDropdownWithTranslation(elements.dosageFormSearch, uniqueDosageForms, dosageFormMap);
-  
-  const dropdownTime = (performance.now() - dropdownStartTime).toFixed(0);
-  console.log(`🎛️ 下拉框初始化完成: ROUTE(${uniqueRoutes.length}项) + DOSAGE_FORM(${uniqueDosageForms.length}项)，耗时 ${dropdownTime}ms`);
 }
 
 // 填充下拉框
@@ -459,8 +421,6 @@ function handleKeyboardNavigation(e) {
 
 // 执行搜索
 function performSearch() {
-  const searchStartTime = performance.now();
-  
   const filters = {
     ingredient: elements.ingredientSearch.value.trim().toLowerCase(),
     route: elements.routeSearch.value,
@@ -516,9 +476,6 @@ function performSearch() {
     return true;
   });
 
-  const filterTime = (performance.now() - searchStartTime).toFixed(0);
-  console.log(`🔍 搜索完成: ${allData.length}条 → ${filteredData.length}条，耗时 ${filterTime}ms`);
-
   currentPage = 1;
   displayResults();
 }
@@ -566,8 +523,6 @@ function displayResults() {
 
 // 显示桌面端表格
 function displayTable(currentItems) {
-  const renderStartTime = performance.now();
-  
   // 清空表格
   elements.resultsTbody.innerHTML = "";
 
@@ -580,9 +535,6 @@ function displayTable(currentItems) {
   
   // 一次性插入所有行（只触发1次重排）
   elements.resultsTbody.appendChild(fragment);
-  
-  const renderTime = (performance.now() - renderStartTime).toFixed(0);
-  console.log(`📊 表格渲染完成: ${currentItems.length}行 × 10列，耗时 ${renderTime}ms`);
 }
 
 // 创建表格行
@@ -716,8 +668,6 @@ function changeItemsPerPage() {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   currentPage = Math.max(1, Math.min(currentPage, totalPages));
   
-  console.log(`每页行数已改为 ${itemsPerPage} 条`);
-  
   displayResults();
 }
 
@@ -780,7 +730,6 @@ function showLoading(show) {
 // 缓存状态（静默模式 - 无UI展示）
 function showCacheStatus(status) {
   // 缓存在后台静默工作，不显示任何UI
-  console.log(`缓存状态: ${status}`);
 }
 
 
@@ -843,9 +792,6 @@ function downloadResults() {
 
     // 下载文件
     XLSX.writeFile(wb, filename);
-
-    // 提示用户
-    console.log(`已导出 ${filteredData.length} 条记录到 ${filename}`);
   } catch (error) {
     console.error("导出Excel失败:", error);
     alert("导出Excel失败，请稍后重试");

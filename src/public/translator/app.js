@@ -459,7 +459,6 @@ async function startTranslation() {
       
       if (existingTask) {
         // 已翻译过，跳过
-        console.log(`文件已翻译过，跳过: ${file.name} (原记录: ${existingTask.fileName})`);
         alert(`文件 "${file.name}" 已翻译过！\n\n原文件名: ${existingTask.fileName}\n翻译时间: ${formatDateTime(existingTask.startTime)}\n\n已自动跳过此文件。`);
         results.skipped++;
         elements.progressCurrent.textContent = i + 1;
@@ -498,10 +497,6 @@ async function startTranslation() {
   // 清空文件列表
   state.selectedFiles = [];
   updateFileList();
-  
-  // 显示简单通知（历史记录已自动更新）
-  const message = `翻译完成！成功: ${results.success}, 失败: ${results.failed}${results.skipped > 0 ? ', 跳过: ' + results.skipped : ''}, 耗时: ${formatDuration(duration)}`;
-  console.log(message);
   
   // 滚动到历史记录，让用户看到新添加的记录
   setTimeout(() => {
@@ -888,9 +883,6 @@ async function deleteHistoryItem(taskId) {
     });
 
     const fileResult = await deleteFileResponse.json();
-    if (!fileResult.success) {
-      console.warn('删除文件失败:', fileResult.error);
-    }
 
     // 删除历史记录
     const deleteHistoryResponse = await authenticatedFetch(`/api/translate/history/${taskId}`, {
@@ -957,11 +949,6 @@ async function init() {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
     }
-    
-    // 显示当前用户
-    const employeeId = window.authManager.getEmployeeId();
-    const name = window.authManager.getName();
-    console.log('PDF翻译器已初始化 - 用户:', employeeId, name);
     
     // 初始化所有事件监听（只调用一次）
     initUploadEvents();
