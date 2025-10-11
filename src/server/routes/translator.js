@@ -161,8 +161,11 @@ async function translatePDF(inputPath, originalName, outputDir) {
         const displayName = Buffer.from(originalName, 'utf8').toString('utf8');
         logger.info(`翻译成功: ${displayName}`);
         
-        // 查找输出文件
-        const baseName = path.basename(inputPath, '.pdf');
+        // 查找输出文件 - 处理大小写扩展名问题
+        const inputFileName = path.basename(inputPath);
+        // 使用正则去掉扩展名（不区分大小写）
+        const baseName = inputFileName.replace(/\.(pdf|PDF)$/i, '');
+        
         const possibleOutputs = [
           path.join(outputDir, `${baseName}.no_watermark.zh-cn.mono.pdf`),
           path.join(outputDir, `${baseName}.no_watermark.zh-CN.mono.pdf`),
@@ -170,6 +173,8 @@ async function translatePDF(inputPath, originalName, outputDir) {
           path.join(outputDir, `${baseName}.zh-CN.mono.pdf`),
           path.join(outputDir, `${baseName}.pdf`),
         ];
+        
+        logger.info(`查找输出文件，baseName: ${baseName}`);
         
         // 依次检查可能的输出文件
         for (const outputPath of possibleOutputs) {
@@ -186,9 +191,12 @@ async function translatePDF(inputPath, originalName, outputDir) {
         // 如果都没找到，尝试列出输出目录看看生成了什么
         try {
           const files = await fs.readdir(outputDir);
-          logger.error(`输出目录文件列表: ${files.join(', ')}`);
+          logger.error(`❌ 未找到预期的输出文件`);
+          logger.error(`baseName: ${baseName}`);
+          logger.error(`预期: ${baseName}.no_watermark.zh-cn.mono.pdf`);
+          logger.error(`输出目录所有文件: ${files.join(', ')}`);
         } catch (err) {
-          // 忽略
+          logger.error(`读取输出目录失败: ${err.message}`);
         }
         
         reject(new Error('未找到输出文件'));
@@ -378,6 +386,9 @@ router.post('/api/translate/history', requireAuth, async (req, res) => {
     
     // 读取当前历史
     let history = await loadUserHistory(employeeId);
+    
+    // 去重：如果已存在相同ID的记录，先删除（防止重复保存）
+    history = history.filter(t => t.id !== task.id);
     
     // 添加新记录（最新的在前面）
     history.unshift(task);

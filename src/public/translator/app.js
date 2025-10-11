@@ -11,6 +11,7 @@ const state = {
   timerInterval: null,
   cancelRequested: false,
   authenticated: false,
+  abortController: null,  // 用于中断HTTP请求
 };
 
 // DOM 元素
@@ -246,34 +247,103 @@ function updateFileList() {
   elements.fileCount.textContent = state.selectedFiles.length;
   elements.translateCount.textContent = state.selectedFiles.length;
 
-  // 渲染文件列表
-  elements.fileItems.innerHTML = state.selectedFiles.map((file, index) => `
-    <div class="file-item">
-      <div class="file-info">
-        <svg class="file-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="file-name" title="${file.name}">${file.name}</span>
-      </div>
-      <button class="file-remove" data-index="${index}" aria-label="移除文件">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
-  `).join('');
+  renderFileList();
+}
 
-  // 绑定移除按钮事件
-  document.querySelectorAll('.file-remove').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const index = parseInt(e.currentTarget.dataset.index);
-      removeFile(index);
-    });
+/**
+ * 渲染文件列表
+ */
+function renderFileList() {
+  const fragment = document.createDocumentFragment();
+  
+  state.selectedFiles.forEach((file, index) => {
+    const fileItem = createFileItem(file, index);
+    fragment.appendChild(fileItem);
+  });
+  
+  elements.fileItems.innerHTML = '';
+  elements.fileItems.appendChild(fragment);
+}
+
+/**
+ * 创建文件列表项
+ */
+function createFileItem(file, index) {
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  
+  // 文件信息
+  const fileInfo = document.createElement('div');
+  fileInfo.className = 'file-info';
+  
+  const icon = createSVGIcon('file');
+  fileInfo.appendChild(icon);
+  
+  const fileName = document.createElement('span');
+  fileName.className = 'file-name';
+  fileName.title = file.name;
+  fileName.textContent = file.name;
+  fileInfo.appendChild(fileName);
+  
+  div.appendChild(fileInfo);
+  
+  // 移除按钮
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'file-remove';
+  removeBtn.dataset.index = index;
+  removeBtn.setAttribute('aria-label', '移除文件');
+  removeBtn.appendChild(createSVGIcon('close'));
+  
+  div.appendChild(removeBtn);
+  
+  return div;
+}
+
+/**
+ * 创建 SVG 图标
+ */
+function createSVGIcon(type) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  
+  if (type === 'file') {
+    svg.setAttribute('class', 'file-icon');
+    svg.innerHTML = `
+      <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 13H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M16 17H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10 9H9H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    `;
+  } else if (type === 'close') {
+    svg.setAttribute('width', '20');
+    svg.setAttribute('height', '20');
+    svg.innerHTML = `
+      <path d="M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    `;
+  } else if (type === 'empty') {
+    svg.setAttribute('class', 'empty-history-icon');
+    svg.innerHTML = `
+      <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    `;
+  }
+  
+  return svg;
+}
+
+/**
+ * 初始化文件列表事件（只调用一次）
+ */
+function initFileListEvents() {
+  elements.fileItems.addEventListener('click', (e) => {
+    const btn = e.target.closest('.file-remove');
+    if (!btn) return;
+    
+    const index = parseInt(btn.dataset.index);
+    removeFile(index);
   });
 }
 
@@ -281,43 +351,48 @@ function updateFileList() {
 // 文件上传事件
 // ============================================
 
-// 点击上传区域
-elements.uploadArea.addEventListener('click', () => {
-  if (!state.isTranslating) {
+/**
+ * 初始化文件上传相关事件
+ */
+function initUploadEvents() {
+  // 点击上传区域
+  elements.uploadArea.addEventListener('click', () => {
+    if (!state.isTranslating) {
+      elements.fileInput.click();
+    }
+  });
+
+  // 文件选择
+  elements.fileInput.addEventListener('change', (e) => {
+    addFiles(e.target.files);
+    e.target.value = ''; // 清空，允许重复选择同一文件
+  });
+
+  // 拖拽上传
+  elements.uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    elements.uploadArea.classList.add('dragging');
+  });
+
+  elements.uploadArea.addEventListener('dragleave', () => {
+    elements.uploadArea.classList.remove('dragging');
+  });
+
+  elements.uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    elements.uploadArea.classList.remove('dragging');
+    
+    if (!state.isTranslating) {
+      addFiles(e.dataTransfer.files);
+    }
+  });
+
+  // 按钮事件
+  elements.clearFilesBtn.addEventListener('click', clearFiles);
+  elements.addMoreBtn.addEventListener('click', () => {
     elements.fileInput.click();
-  }
-});
-
-// 文件选择
-elements.fileInput.addEventListener('change', (e) => {
-  addFiles(e.target.files);
-  e.target.value = ''; // 清空，允许重复选择同一文件
-});
-
-// 拖拽上传
-elements.uploadArea.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  elements.uploadArea.classList.add('dragging');
-});
-
-elements.uploadArea.addEventListener('dragleave', () => {
-  elements.uploadArea.classList.remove('dragging');
-});
-
-elements.uploadArea.addEventListener('drop', (e) => {
-  e.preventDefault();
-  elements.uploadArea.classList.remove('dragging');
-  
-  if (!state.isTranslating) {
-    addFiles(e.dataTransfer.files);
-  }
-});
-
-// 按钮事件
-elements.clearFilesBtn.addEventListener('click', clearFiles);
-elements.addMoreBtn.addEventListener('click', () => {
-  elements.fileInput.click();
-});
+  });
+}
 
 // ============================================
 // 翻译功能
@@ -340,6 +415,7 @@ async function startTranslation() {
   state.currentIndex = 0;
   state.startTime = Date.now();
   state.cancelRequested = false;
+  state.abortController = new AbortController();  // 创建新的中断控制器
 
   // 显示进度区域
   elements.progressSection.classList.add('show');
@@ -452,15 +528,26 @@ async function translateFile(file, md5 = null) {
   };
 
   try {
+    // 检查是否已取消
+    if (state.cancelRequested) {
+      return { success: false, error: '已取消' };
+    }
+
     // 创建 FormData
     const formData = new FormData();
     formData.append('file', file);
 
-    // 发送翻译请求
+    // 发送翻译请求（带中断信号）
     const response = await authenticatedFetch('/api/translate', {
       method: 'POST',
       body: formData,
+      signal: state.abortController?.signal,  // 传递中断信号
     });
+
+    // 再次检查是否已取消（请求返回后）
+    if (state.cancelRequested) {
+      return { success: false, error: '已取消' };
+    }
 
     const data = await response.json();
 
@@ -485,7 +572,12 @@ async function translateFile(file, md5 = null) {
       return { success: false, error: task.errorMessage };
     }
   } catch (error) {
-    // 网络错误或其他异常
+    // 网络错误或其他异常（包括被取消的情况）
+    // 如果是 AbortError，说明请求被主动取消，不保存历史记录
+    if (error.name === 'AbortError' || state.cancelRequested) {
+      return { success: false, error: '已取消' };
+    }
+    
     task.status = 'error';
     task.endTime = Date.now();
     task.duration = Math.floor((task.endTime - task.startTime) / 1000);
@@ -502,6 +594,13 @@ async function translateFile(file, md5 = null) {
 function cancelTranslation() {
   if (confirm('确定要取消当前的翻译任务吗？')) {
     state.cancelRequested = true;
+    
+    // 中断正在进行的HTTP请求
+    if (state.abortController) {
+      state.abortController.abort();
+      state.abortController = null;
+    }
+    
     stopTimer();
     elements.progressSection.classList.remove('show');
     elements.uploadArea.style.opacity = '1';
@@ -532,128 +631,199 @@ function stopTimer() {
   }
 }
 
-// 翻译按钮事件
-elements.startTranslationBtn.addEventListener('click', startTranslation);
-elements.cancelTranslationBtn.addEventListener('click', cancelTranslation);
+/**
+ * 初始化翻译相关事件
+ */
+function initTranslationEvents() {
+  elements.startTranslationBtn.addEventListener('click', startTranslation);
+  elements.cancelTranslationBtn.addEventListener('click', cancelTranslation);
+}
 
 // ============================================
 // 历史记录
 // ============================================
 
 /**
- * 更新历史记录表格（异步调度，避免阻塞主线程）
+ * 更新历史记录表格
  */
-let updateHistoryTablePending = false;
 async function updateHistoryTable() {
-  // 防抖：如果已经有待处理的更新，跳过
-  if (updateHistoryTablePending) {
-    return;
-  }
-  
-  updateHistoryTablePending = true;
-  
-  // 使用 requestIdleCallback 在浏览器空闲时更新，避免阻塞主线程
-  const updateTask = async () => {
-    try {
-      const history = await getHistory();
-      elements.historyCount.textContent = history.length;
-
-      if (history.length === 0) {
-        elements.historyTableBody.innerHTML = `
-          <tr>
-            <td colspan="5">
-              <div class="empty-history">
-                <svg class="empty-history-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <p>暂无翻译记录</p>
-                <p style="font-size: 13px;">上传PDF文件开始翻译</p>
-              </div>
-            </td>
-          </tr>
-        `;
-        return;
-      }
-
-      // 使用 DocumentFragment 减少重排
-      const fragment = document.createDocumentFragment();
-      const tbody = document.createElement('tbody');
-      
-      // 分批渲染，每批50条，避免一次性处理太多
-      const BATCH_SIZE = 50;
-      for (let i = 0; i < history.length; i += BATCH_SIZE) {
-        const batch = history.slice(i, i + BATCH_SIZE);
-        
-        batch.forEach(task => {
-          const tr = document.createElement('tr');
-          const statusClass = task.status === 'success' ? 'success' : 'error';
-          const statusText = task.status === 'success' ? '成功' : '失败';
-          
-          tr.innerHTML = `
-            <td title="${task.fileName}">${task.fileName}</td>
-            <td>${formatDateTime(task.startTime)}</td>
-            <td>${formatDuration(task.duration)}</td>
-            <td>
-              <span class="status-badge ${statusClass}">
-                <span class="status-dot"></span>
-                ${statusText}
-              </span>
-            </td>
-            <td>
-              <div class="action-buttons">
-                ${task.inputPath ? `
-                  <button class="btn-action" data-action="view-input" data-path="${task.inputPath}">查看原文</button>
-                ` : ''}
-                ${task.status === 'success' && task.outputPath ? `
-                  <button class="btn-action" data-action="view-output" data-path="${task.outputPath}">查看译文</button>
-                ` : ''}
-                ${task.status === 'error' ? `
-                  <button class="btn-action btn-error" data-action="view-error" title="${task.errorMessage || '未知错误'}">查看错误</button>
-                ` : ''}
-                <button class="btn-action btn-danger" data-action="delete" data-id="${task.id}">删除</button>
-              </div>
-            </td>
-          `;
-          
-          tbody.appendChild(tr);
-        });
-        
-        // 分批时让出主线程
-        if (i + BATCH_SIZE < history.length) {
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-      }
-      
-      // 一次性替换整个tbody（减少重排次数）
-      elements.historyTableBody.innerHTML = '';
-      elements.historyTableBody.appendChild(tbody);
-      
-      // 使用事件委托，不再用 onclick
-      bindHistoryTableEvents();
-      
-    } finally {
-      updateHistoryTablePending = false;
-    }
-  };
-  
-  // 优先使用 requestIdleCallback，降级到 setTimeout
-  if (typeof requestIdleCallback !== 'undefined') {
-    requestIdleCallback(() => updateTask(), { timeout: 1000 });
-  } else {
-    setTimeout(() => updateTask(), 0);
-  }
+  const history = await getHistory();
+  renderHistoryTable(history);
 }
 
 /**
- * 绑定历史记录表格事件（事件委托，性能更好）
+ * 渲染历史记录表格
  */
-function bindHistoryTableEvents() {
-  // 移除旧的监听器（如果有）
-  elements.historyTableBody.removeEventListener('click', handleHistoryTableClick);
+function renderHistoryTable(history) {
+  elements.historyCount.textContent = history.length;
   
-  // 添加新的监听器
+  if (history.length === 0) {
+    renderEmptyState();
+    return;
+  }
+  
+  renderHistoryRows(history);
+}
+
+/**
+ * 渲染空状态
+ */
+function renderEmptyState() {
+  const tr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.colSpan = 5;
+  
+  const div = document.createElement('div');
+  div.className = 'empty-history';
+  
+  div.appendChild(createSVGIcon('empty'));
+  
+  const p1 = document.createElement('p');
+  p1.textContent = '暂无翻译记录';
+  div.appendChild(p1);
+  
+  const p2 = document.createElement('p');
+  p2.style.fontSize = '13px';
+  p2.textContent = '上传PDF文件开始翻译';
+  div.appendChild(p2);
+  
+  td.appendChild(div);
+  tr.appendChild(td);
+  elements.historyTableBody.innerHTML = '';
+  elements.historyTableBody.appendChild(tr);
+}
+
+/**
+ * 渲染历史记录行
+ */
+function renderHistoryRows(history) {
+  const fragment = document.createDocumentFragment();
+  
+  history.forEach(task => {
+    const tr = createHistoryRow(task);
+    fragment.appendChild(tr);
+  });
+  
+  elements.historyTableBody.innerHTML = '';
+  elements.historyTableBody.appendChild(fragment);
+}
+
+/**
+ * 创建历史记录行
+ */
+function createHistoryRow(task) {
+  const tr = document.createElement('tr');
+  
+  // 文件名
+  const fileNameCell = document.createElement('td');
+  fileNameCell.title = task.fileName;
+  fileNameCell.textContent = task.fileName;
+  tr.appendChild(fileNameCell);
+  
+  // 翻译时间
+  const timeCell = document.createElement('td');
+  timeCell.textContent = formatDateTime(task.startTime);
+  tr.appendChild(timeCell);
+  
+  // 耗时
+  const durationCell = document.createElement('td');
+  durationCell.textContent = formatDuration(task.duration);
+  tr.appendChild(durationCell);
+  
+  // 状态
+  const statusCell = document.createElement('td');
+  statusCell.appendChild(createStatusBadge(task.status));
+  tr.appendChild(statusCell);
+  
+  // 操作
+  const actionCell = document.createElement('td');
+  actionCell.appendChild(createActionButtons(task));
+  tr.appendChild(actionCell);
+  
+  return tr;
+}
+
+/**
+ * 创建状态徽章
+ */
+function createStatusBadge(status) {
+  const span = document.createElement('span');
+  span.className = `status-badge ${status === 'success' ? 'success' : 'error'}`;
+  
+  const dot = document.createElement('span');
+  dot.className = 'status-dot';
+  span.appendChild(dot);
+  
+  span.appendChild(document.createTextNode(status === 'success' ? '成功' : '失败'));
+  
+  return span;
+}
+
+/**
+ * 创建操作按钮
+ */
+function createActionButtons(task) {
+  const div = document.createElement('div');
+  div.className = 'action-buttons';
+  
+  // 查看原文按钮
+  if (task.inputPath) {
+    const viewInputBtn = createButton('查看原文', 'btn-action', {
+      'data-action': 'view-input',
+      'data-path': task.inputPath
+    });
+    div.appendChild(viewInputBtn);
+  }
+  
+  // 查看译文按钮
+  if (task.status === 'success' && task.outputPath) {
+    const viewOutputBtn = createButton('查看译文', 'btn-action', {
+      'data-action': 'view-output',
+      'data-path': task.outputPath
+    });
+    div.appendChild(viewOutputBtn);
+  }
+  
+  // 查看错误按钮
+  if (task.status === 'error') {
+    const viewErrorBtn = createButton('查看错误', 'btn-action btn-error', {
+      'data-action': 'view-error',
+      'title': task.errorMessage || '未知错误'
+    });
+    div.appendChild(viewErrorBtn);
+  }
+  
+  // 删除按钮
+  const deleteBtn = createButton('删除', 'btn-action btn-danger', {
+    'data-action': 'delete',
+    'data-id': task.id
+  });
+  div.appendChild(deleteBtn);
+  
+  return div;
+}
+
+/**
+ * 创建按钮
+ */
+function createButton(text, className, attrs = {}) {
+  const btn = document.createElement('button');
+  btn.className = className;
+  btn.textContent = text;
+  
+  Object.entries(attrs).forEach(([key, value]) => {
+    btn.setAttribute(key, value);
+  });
+  
+  return btn;
+}
+
+/**
+ * 初始化历史记录相关事件（只调用一次）
+ */
+function initHistoryTableEvents() {
   elements.historyTableBody.addEventListener('click', handleHistoryTableClick);
+  elements.clearHistoryBtn.addEventListener('click', clearHistory);
 }
 
 /**
@@ -687,8 +857,6 @@ function openFile(filePath) {
     alert('文件路径不存在');
     return;
   }
-  
-  // 在新窗口打开文件
   window.open(filePath, '_blank');
 }
 
@@ -701,7 +869,6 @@ async function deleteHistoryItem(taskId) {
   }
 
   try {
-    // 获取任务信息
     const history = await getHistory();
     const task = history.find(t => t.id === taskId);
     
@@ -710,7 +877,7 @@ async function deleteHistoryItem(taskId) {
       return;
     }
 
-    // 调用后端删除文件
+    // 删除文件
     const deleteFileResponse = await authenticatedFetch('/api/translate/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -721,12 +888,11 @@ async function deleteHistoryItem(taskId) {
     });
 
     const fileResult = await deleteFileResponse.json();
-    
     if (!fileResult.success) {
       console.warn('删除文件失败:', fileResult.error);
     }
 
-    // 从服务器删除历史记录
+    // 删除历史记录
     const deleteHistoryResponse = await authenticatedFetch(`/api/translate/history/${taskId}`, {
       method: 'DELETE'
     });
@@ -734,20 +900,15 @@ async function deleteHistoryItem(taskId) {
     const historyResult = await deleteHistoryResponse.json();
     
     if (historyResult.success) {
-      // 更新UI
       await updateHistoryTable();
     } else {
-      alert('删除记录失败: ' + historyResult.error);
+      alert('删除失败: ' + historyResult.error);
     }
-    
   } catch (error) {
     console.error('删除失败:', error);
     alert('删除失败: ' + error.message);
   }
 }
-
-// 清空历史按钮
-elements.clearHistoryBtn.addEventListener('click', clearHistory);
 
 // ============================================
 // 初始化
@@ -801,6 +962,12 @@ async function init() {
     const employeeId = window.authManager.getEmployeeId();
     const name = window.authManager.getName();
     console.log('PDF翻译器已初始化 - 用户:', employeeId, name);
+    
+    // 初始化所有事件监听（只调用一次）
+    initUploadEvents();
+    initFileListEvents();
+    initTranslationEvents();
+    initHistoryTableEvents();
     
     // 加载历史记录
     await updateHistoryTable();

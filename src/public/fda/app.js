@@ -585,44 +585,84 @@ function displayTable(currentItems) {
   console.log(`📊 表格渲染完成: ${currentItems.length}行 × 10列，耗时 ${renderTime}ms`);
 }
 
-// 创建表格行（使用innerHTML模板，性能更好）
+// 创建表格行
 function createTableRow(item) {
   const row = document.createElement("tr");
   
-  // 提取所有数据
-  const ingredientName = item[FIELD_NAMES.INGREDIENT_NAME] || "";
-  const ingredientNameCn = item[FIELD_NAMES.INGREDIENT_NAME_CN] || "";
-  const routeName = item[FIELD_NAMES.ROUTE] || "";
-  const routeNameCn = item[FIELD_NAMES.ROUTE_CN] || "";
-  const routeExplanation = item[FIELD_NAMES.ROUTE_EXPLANATION] || "";
-  const dosageFormName = item[FIELD_NAMES.DOSAGE_FORM] || "";
-  const dosageFormNameCn = item[FIELD_NAMES.DOSAGE_FORM_CN] || "";
-  const dosageFormExplanation = item[FIELD_NAMES.DOSAGE_FORM_EXPLANATION] || "";
+  // 成分名称（中英文）
+  row.appendChild(createBilingualCell(
+    item[FIELD_NAMES.INGREDIENT_NAME_CN],
+    item[FIELD_NAMES.INGREDIENT_NAME]
+  ));
   
-  // 使用innerHTML一次性创建所有单元格（性能优化）
-  row.innerHTML = `
-    <td>${ingredientNameCn ? `${escapeHtml(ingredientNameCn)}<br><small style="color: #666;">${escapeHtml(ingredientName)}</small>` : escapeHtml(ingredientName)}</td>
-    <td class="route-cell"${routeExplanation ? ` data-tooltip="${escapeHtml(routeExplanation)}"` : ''}>${routeNameCn ? `${escapeHtml(routeNameCn)}<br><small style="color: #666;">${escapeHtml(routeName)}</small>` : escapeHtml(routeName)}</td>
-    <td class="dosage-form-cell"${dosageFormExplanation ? ` data-tooltip="${escapeHtml(dosageFormExplanation)}"` : ''}>${dosageFormNameCn ? `${escapeHtml(dosageFormNameCn)}<br><small style="color: #666;">${escapeHtml(dosageFormName)}</small>` : escapeHtml(dosageFormName)}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.CAS_NUMBER] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.UNII] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.POTENCY_AMOUNT] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.POTENCY_UNIT] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE_UNIT] || "")}</td>
-    <td>${escapeHtml(item[FIELD_NAMES.RECORD_UPDATED] || "")}</td>
-  `.trim();
-
+  // 给药途径（中英文 + tooltip）
+  row.appendChild(createBilingualCell(
+    item[FIELD_NAMES.ROUTE_CN],
+    item[FIELD_NAMES.ROUTE],
+    'route-cell',
+    item[FIELD_NAMES.ROUTE_EXPLANATION]
+  ));
+  
+  // 剂型（中英文 + tooltip）
+  row.appendChild(createBilingualCell(
+    item[FIELD_NAMES.DOSAGE_FORM_CN],
+    item[FIELD_NAMES.DOSAGE_FORM],
+    'dosage-form-cell',
+    item[FIELD_NAMES.DOSAGE_FORM_EXPLANATION]
+  ));
+  
+  // 其他字段（纯文本）
+  row.appendChild(createTextCell(item[FIELD_NAMES.CAS_NUMBER]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.UNII]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.POTENCY_AMOUNT]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.POTENCY_UNIT]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.MAXIMUM_DAILY_EXPOSURE_UNIT]));
+  row.appendChild(createTextCell(item[FIELD_NAMES.RECORD_UPDATED]));
+  
   return row;
 }
 
-// HTML转义函数（防止XSS）
-function escapeHtml(text) {
-  if (text === null || text === undefined) return "";
-  const str = String(text);
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+/**
+ * 创建双语单元格（中文主显示，英文小字）
+ */
+function createBilingualCell(cnText, enText, className = '', tooltip = '') {
+  const td = document.createElement('td');
+  
+  if (className) {
+    td.className = className;
+  }
+  
+  if (tooltip) {
+    td.setAttribute('data-tooltip', tooltip);
+  }
+  
+  // 如果有中文，显示中文+英文；否则只显示英文
+  if (cnText) {
+    const cnSpan = document.createElement('span');
+    cnSpan.textContent = cnText;
+    td.appendChild(cnSpan);
+    
+    td.appendChild(document.createElement('br'));
+    
+    const enSmall = document.createElement('small');
+    enSmall.style.color = '#666';
+    enSmall.textContent = enText || '';
+    td.appendChild(enSmall);
+  } else {
+    td.textContent = enText || '';
+  }
+  
+  return td;
+}
+
+/**
+ * 创建纯文本单元格
+ */
+function createTextCell(text) {
+  const td = document.createElement('td');
+  td.textContent = text || '';
+  return td;
 }
 
 // 翻页
