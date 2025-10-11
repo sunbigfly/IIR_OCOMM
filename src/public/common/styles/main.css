@@ -52,6 +52,8 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* 强制显示滚动条，消除宽度跳动 */
+  overflow-y: scroll;
 }
 
 /* ============================================
@@ -1507,4 +1509,127 @@ header h1 {
 .empty-history p {
   font-size: 15px;
   margin-bottom: 8px;
+}
+
+/* ============================================
+   首页专属样式
+   ============================================ */
+
+.hero-section {
+  text-align: center;
+  padding: 60px 24px 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-title {
+  font-size: 48px;
+  font-weight: 400;
+  color: var(--google-grey-900);
+  margin-bottom: 16px;
+  letter-spacing: -1px;
+}
+
+.hero-subtitle {
+  font-size: 18px;
+  color: var(--google-grey-600);
+  margin-bottom: 48px;
+  line-height: 1.6;
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+}
+
+.system-card {
+  flex: 1;
+  min-width: 0;
+  background: var(--google-white);
+  border: 1px solid var(--google-grey-200);
+  border-radius: var(--border-radius);
+  padding: 32px;
+  box-shadow: var(--box-shadow);
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.system-card:hover {
+  box-shadow: var(--box-shadow-hover);
+  transform: translateY(-2px);
+  border-color: var(--google-blue);
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--google-blue);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--google-white);
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--google-grey-900);
+  margin: 0;
+}
+
+.card-description {
+  font-size: 14px;
+  color: var(--google-grey-600);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.card-features {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: var(--google-grey-700);
+}
+
+.card-features li {
+  padding: 4px 0;
+  position: relative;
+  padding-left: 20px;
+}
+
+.card-features li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--google-green);
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 32px;
+  }
+  
+  .hero-subtitle {
+    font-size: 16px;
+  }
+  
+  .cards-container {
+    padding: 0 16px 40px;
+    gap: 16px;
+  }
+  
+  .system-card {
+    padding: 20px;
+  }
 }
