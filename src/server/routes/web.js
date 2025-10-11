@@ -8,13 +8,23 @@ const router = express.Router();
 const path = require('path');
 const config = require('../config');
 
-// FDA检索首页
+// 统一首页
 router.get('/', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'home.html'));
+});
+
+// FDA检索系统
+router.get('/fda', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'fda/index.html'));
 });
 
-// 药用辅料手册页面
+// 药用辅料手册页面（保持旧URL兼容）
 router.get('/handbook.html', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'handbook/index.html'));
+});
+
+// 药用辅料手册页面（新URL）
+router.get('/handbook', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'handbook/index.html'));
 });
 

@@ -116,11 +116,21 @@ check_node() {
 
 # 检查项目文件
 check_project_files() {
-    local required_files=("server.js" "package.json" "web_app/index.html" "web_app/data.json")
+    local required_files=("server.js" "package.json" "src/server/app.js" "src/public/home.html")
+    local required_dirs=("src/server" "src/public" "data")
     
+    # 检查必需文件
     for file in "${required_files[@]}"; do
         if [ ! -f "$CURRENT_DIR/$file" ]; then
             log_error "项目文件缺失: $file"
+            exit 1
+        fi
+    done
+    
+    # 检查必需目录
+    for dir in "${required_dirs[@]}"; do
+        if [ ! -d "$CURRENT_DIR/$dir" ]; then
+            log_error "项目目录缺失: $dir"
             exit 1
         fi
     done
@@ -144,7 +154,7 @@ create_service_file() {
     
     cat > "$SERVICE_FILE" << EOF
 [Unit]
-Description=IIR OCOMM - 非活性成分数据检索系统
+Description=IIR OCOMM - 医药信息检索平台
 Documentation=https://github.com/your-repo/iir-ocomm
 After=network.target
 
@@ -154,6 +164,7 @@ User=$real_user
 WorkingDirectory=$CURRENT_DIR
 Environment=NODE_ENV=production
 Environment=PORT=8000
+Environment=HOST=0.0.0.0
 ExecStart=$NODE_PATH server.js
 Restart=always
 RestartSec=10
@@ -307,7 +318,9 @@ show_status() {
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         echo ""
         log_info "访问地址:"
-        echo "  本地访问: http://localhost:8000"
+        echo "  统一首页: http://localhost:8000"
+        echo "  FDA检索:  http://localhost:8000/fda"
+        echo "  辅料手册: http://localhost:8000/handbook"
         echo "  局域网访问: http://$(hostname -I | awk '{print $1}'):8000"
     fi
 }

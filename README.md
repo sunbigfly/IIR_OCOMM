@@ -133,8 +133,9 @@ IIR_OCOMM/
 
 启动服务器后，可通过以下方式访问：
 
-- **FDA检索系统**: http://localhost:8000/
-- **辅料手册检索**: http://localhost:8000/handbook.html
+- **统一首页**: http://localhost:8000/
+- **FDA检索系统**: http://localhost:8000/fda
+- **辅料手册检索**: http://localhost:8000/handbook
 - **局域网访问**: http://[你的IP地址]:8000
 
 ## 📊 数据说明

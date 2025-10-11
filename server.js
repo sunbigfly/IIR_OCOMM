@@ -36,8 +36,9 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`   本地:     http://localhost:${config.port}`);
   console.log(`   局域网:   http://${localIP}:${config.port}`);
   console.log('\n📖 应用列表:');
-  console.log(`   FDA检索:  http://localhost:${config.port}/`);
-  console.log(`   辅料手册: http://localhost:${config.port}/handbook.html`);
+  console.log(`   首页:     http://localhost:${config.port}/`);
+  console.log(`   FDA检索:  http://localhost:${config.port}/fda`);
+  console.log(`   辅料手册: http://localhost:${config.port}/handbook`);
   console.log('\n⏹️  按 Ctrl+C 停止服务器\n');
 
   // 尝试自动打开浏览器
