@@ -69,6 +69,12 @@
   /* 动画 */
   --transition-normal: all 0.2s ease;
   --transition-slow: all 0.3s ease;
+  
+  /* z-index层级系统 - Linus式：统一管理，消除魔法数字 */
+  --z-nav: 1000;      /* 导航栏 */
+  --z-modal: 2000;    /* 通用模态框 */
+  --z-auth: 5000;     /* 认证对话框（阻断式操作） */
+  --z-toast: 9000;    /* Toast通知（最高优先级，短暂提示） */
 }
 
 /* 基础样式 */
@@ -131,7 +137,7 @@ body {
   box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: var(--z-nav);
   padding: 0 24px;
 }
 
@@ -1000,7 +1006,7 @@ header h1 {
 .modal {
   display: none;
   position: fixed;
-  z-index: 2000;
+  z-index: var(--z-modal);
   left: 0;
   top: 0;
   width: 100%;
@@ -1676,7 +1682,7 @@ header h1 {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-size: 14px;
   font-weight: 500;
-  z-index: 10000;
+  z-index: var(--z-toast);
   min-width: 280px;
   max-width: 420px;
   opacity: 0;
@@ -1881,7 +1887,7 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  z-index: var(--z-auth);
   backdrop-filter: blur(4px);
 }
 

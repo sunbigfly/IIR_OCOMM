@@ -132,13 +132,21 @@ function formatFileSize(bytes) {
 }
 
 /**
- * Toast 通知
+ * Toast 通知 - Linus式：自动堆叠，消除重叠
  */
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
   document.body.appendChild(toast);
+  
+  // 计算偏移量：找出所有正在显示的Toast，向下堆叠
+  const existingToasts = document.querySelectorAll('.toast.show');
+  let offset = 150; // 初始top位置
+  existingToasts.forEach(t => {
+    offset += t.offsetHeight + 12; // 每个Toast高度 + 12px间距
+  });
+  toast.style.top = offset + 'px';
   
   // 触发动画
   setTimeout(() => toast.classList.add('show'), 10);
