@@ -1667,7 +1667,7 @@ header h1 {
 
 .toast {
   position: fixed;
-  top: 80px;
+  top: 150px;
   right: 24px;
   background: var(--google-white);
   color: var(--google-grey-900);
