@@ -133,20 +133,24 @@ function formatFileSize(bytes) {
 
 /**
  * Toast 通知 - Linus式：自动堆叠，消除重叠
+ * 使用固定高度估算，避免DOM测量不准确
  */
 function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
-  document.body.appendChild(toast);
   
-  // 计算偏移量：找出所有正在显示的Toast，向下堆叠
-  const existingToasts = document.querySelectorAll('.toast.show');
-  let offset = 150; // 初始top位置
-  existingToasts.forEach(t => {
-    offset += t.offsetHeight + 12; // 每个Toast高度 + 12px间距
-  });
+  // 先查询现有Toast数量（在添加新Toast之前）
+  const existingToasts = document.querySelectorAll('.toast');
+  const toastHeight = 60; // Toast固定高度估算（padding + 文字 ≈ 42-60px）
+  const gap = 12;          // Toast间距
+  
+  // 计算新Toast的位置：起始位置 + (现有数量 × (高度 + 间距))
+  const offset = 150 + (existingToasts.length * (toastHeight + gap));
   toast.style.top = offset + 'px';
+  
+  // 添加到DOM
+  document.body.appendChild(toast);
   
   // 触发动画
   setTimeout(() => toast.classList.add('show'), 10);
