@@ -1,31 +1,34 @@
-# IIR OCOMM - 医药信息检索系统
+# Pharma Toolbox - 医药工具箱
 
-医药信息检索平台，包含：
-- FDA 非活性成分数据库检索（15万条记录）
-- 药用辅料手册检索（300+份中英文PDF）
+专业的医药信息检索与文档处理平台，包含：
+- 📦 FDA 非活性成分数据库检索（15万条记录）
+- 📚 药用辅料手册检索（300+份中英文PDF）
+- 🌐 PDF 翻译器（基于 pdf2zh-next）
+- 🤖 Prompt 优化器（AI提示词优化工具）
 
 ## 快速开始
 
+### 开发环境
 ```bash
-# 安装依赖
-npm install
+# 1. 初始化环境（首次运行）
+./service-manager.sh setup
 
-# 启动服务（默认端口8000）
+# 2. 启动服务
 npm start
-
-# 自定义端口
-PORT=3000 npm start
 ```
 
 访问：http://localhost:8000
 
-### 生产环境部署（systemd服务）
+### 生产环境（systemd 服务）
+自动启动所有服务，包括 Prompt Optimizer
 
 ```bash
-sudo ./service-manager.sh install    # 安装并启用开机自启
-sudo ./service-manager.sh start      # 启动
+./service-manager.sh setup           # 初始化环境
+sudo ./service-manager.sh install    # 安装系统服务
+sudo ./service-manager.sh start      # 启动（自动启动 Prompt Optimizer）
 ./service-manager.sh status          # 查看状态
 ./service-manager.sh logs            # 查看日志
+sudo ./service-manager.sh stop       # 停止所有服务
 sudo ./service-manager.sh uninstall  # 卸载
 ```
 
@@ -56,16 +59,31 @@ IIR_OCOMM/
 
 ## 功能说明
 
-**FDA检索**
+### 1️⃣ FDA 非活性成分数据库检索
 - 多字段搜索（成分名、给药途径、剂型、CAS号、UNII）
 - 中英文搜索，支持批量查询（分号分隔）
 - Excel导出，每页50条记录
 - LocalStorage缓存（首次加载后离线可用）
 
-**辅料手册**
+### 2️⃣ 药用辅料手册检索
 - 关键词检索300+份PDF文档
 - 中英文双语在线预览
 - 按编号/名称索引
+
+### 3️⃣ PDF 翻译器
+- 支持多文件批量上传
+- 英文→中文智能翻译
+- 保留PDF原始排版
+- 实时翻译进度显示
+
+### 4️⃣ Prompt 优化器
+- 系统/用户提示词双模式
+- 高级上下文管理
+- 变量与工具支持
+- 版本迭代与对比
+- 实时测试与历史记录
+
+**注意：** Prompt 优化器需要单独安装，详见下方依赖说明
 
 ## 技术架构
 
@@ -106,11 +124,33 @@ MAXIMUM_DAILY_EXPOSURE  最大日暴露量
 RECORD_UPDATED          记录更新时间
 ```
 
-## 开发配置
+## 环境要求
 
-**环境要求**
+**基础环境**
 - Node.js >= 12.0.0
 - 现代浏览器（Chrome/Firefox/Safari/Edge）
+
+**可选依赖（根据功能需要）**
+
+1. **PDF 翻译器** - 需要安装 pdf2zh-next
+   ```bash
+   pip install uv
+   uv tool install --python 3.12 pdf2zh-next
+   ```
+
+2. **Prompt 优化器** - 需要单独安装
+   ```bash
+   # 克隆项目
+   git clone https://github.com/linshenkx/prompt-optimizer.git ~/prompt-optimizer
+   
+   # 安装依赖
+   cd ~/prompt-optimizer
+   pnpm install
+   ```
+   
+   启动脚本会自动检测并启动，无需手动操作
+
+## 开发配置
 
 **修改配置**
 编辑 `src/server/config.js`：

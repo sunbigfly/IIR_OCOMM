@@ -117,7 +117,7 @@ check_node() {
 # 检查项目文件
 check_project_files() {
     local required_files=("server.js" "package.json" "src/server/app.js" "src/public/home.html")
-    local required_dirs=("src/server" "src/public" "data")
+    local required_dirs=("src/server" "src/public")
     
     # 检查必需文件
     for file in "${required_files[@]}"; do
@@ -152,6 +152,16 @@ create_service_file() {
     log_info "Node.js 路径: $NODE_PATH"
     log_info "工作目录: $CURRENT_DIR"
     
+    # 获取用户 HOME 目录
+    local user_home
+    if [ "$real_user" = "root" ]; then
+        user_home="/root"
+    else
+        user_home=$(eval echo "~$real_user")
+    fi
+    
+    log_info "PATH 将包含: $user_home/.local/bin (用于 pdf2zh_next)"
+    
     cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=IIR OCOMM - 医药信息检索平台
@@ -165,6 +175,7 @@ WorkingDirectory=$CURRENT_DIR
 Environment=NODE_ENV=production
 Environment=PORT=8000
 Environment=HOST=0.0.0.0
+Environment=PATH=$user_home/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=$NODE_PATH server.js
 Restart=always
 RestartSec=10
@@ -262,9 +273,103 @@ uninstall_service() {
     log_success "服务卸载完成!"
 }
 
+# 检查并启动 Prompt Optimizer
+start_optimizer() {
+    log_info "检查 Prompt Optimizer 服务..."
+    
+    # 检查端口 18181 是否被占用
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -i:18181 >/dev/null 2>&1; then
+            log_success "Prompt Optimizer 已运行在 http://localhost:18181"
+            return 0
+        fi
+    elif curl -s http://localhost:18181 >/dev/null 2>&1; then
+        log_success "Prompt Optimizer 已运行在 http://localhost:18181"
+        return 0
+    fi
+    
+    log_warning "Prompt Optimizer 未运行，正在启动..."
+    
+    # 检查目录是否存在
+    local optimizer_dir
+    if [ "$EUID" -eq 0 ]; then
+        local real_user="${SUDO_USER:-$USER_NAME}"
+        optimizer_dir=$(eval echo "~$real_user/prompt-optimizer")
+    else
+        optimizer_dir="$HOME/prompt-optimizer"
+    fi
+    
+    if [ ! -d "$optimizer_dir" ]; then
+        log_warning "未找到 $optimizer_dir"
+        log_info "Prompt Optimizer 可选，主服务仍将启动"
+        return 0
+    fi
+    
+    # 检查 pnpm
+    if ! command -v pnpm >/dev/null 2>&1; then
+        log_warning "pnpm 未安装，跳过 Prompt Optimizer"
+        return 0
+    fi
+    
+    # 以真实用户身份启动
+    local start_cmd="cd $optimizer_dir && nohup pnpm dev:desktop > /tmp/prompt-optimizer.log 2>&1 &"
+    
+    if [ "$EUID" -eq 0 ]; then
+        local real_user="${SUDO_USER:-$USER_NAME}"
+        sudo -u "$real_user" bash -c "$start_cmd"
+    else
+        bash -c "$start_cmd"
+    fi
+    
+    echo $! > /tmp/prompt-optimizer.pid
+    
+    # 等待启动（最多15秒）
+    log_info "等待 Prompt Optimizer 启动..."
+    for i in {1..15}; do
+        if curl -s http://localhost:18181 >/dev/null 2>&1; then
+            log_success "Prompt Optimizer 启动成功！"
+            return 0
+        fi
+        sleep 1
+        echo -n "."
+    done
+    
+    echo ""
+    log_warning "Prompt Optimizer 启动超时，请检查日志: tail -f /tmp/prompt-optimizer.log"
+}
+
+# 停止 Prompt Optimizer
+stop_optimizer() {
+    log_info "停止 Prompt Optimizer..."
+    
+    if [ -f /tmp/prompt-optimizer.pid ]; then
+        local pid=$(cat /tmp/prompt-optimizer.pid)
+        if ps -p $pid > /dev/null 2>&1; then
+            kill $pid 2>/dev/null
+            rm /tmp/prompt-optimizer.pid
+            log_success "Prompt Optimizer 已停止"
+        else
+            rm /tmp/prompt-optimizer.pid
+        fi
+    fi
+    
+    # 通过端口查找并杀死
+    if command -v lsof >/dev/null 2>&1; then
+        local pid=$(lsof -ti:18181 2>/dev/null)
+        if [ ! -z "$pid" ]; then
+            kill $pid 2>/dev/null
+            log_success "Prompt Optimizer 进程已终止"
+        fi
+    fi
+}
+
 # 启动服务
 start_service() {
     check_root
+    
+    # 先启动 Prompt Optimizer
+    start_optimizer
+    
     log_info "启动 IIR OCOMM 服务..."
     systemctl start "$SERVICE_NAME"
     log_success "服务已启动"
@@ -282,6 +387,9 @@ stop_service() {
     else
         log_warning "服务未运行或已停止"
     fi
+    
+    # 同时停止 Prompt Optimizer
+    stop_optimizer
 }
 
 # 重启服务
@@ -318,10 +426,20 @@ show_status() {
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         echo ""
         log_info "访问地址:"
-        echo "  统一首页: http://localhost:8000"
-        echo "  FDA检索:  http://localhost:8000/fda"
-        echo "  辅料手册: http://localhost:8000/handbook"
-        echo "  局域网访问: http://$(hostname -I | awk '{print $1}'):8000"
+        echo "  统一首页:     http://localhost:8000"
+        echo "  FDA检索:      http://localhost:8000/fda"
+        echo "  辅料手册:     http://localhost:8000/handbook"
+        echo "  PDF翻译:      http://localhost:8000/translator"
+        echo "  Prompt优化:   http://localhost:8000/optimizer"
+        echo "  局域网访问:   http://$(hostname -I | awk '{print $1}'):8000"
+        
+        # 检查 Prompt Optimizer 状态
+        echo ""
+        if curl -s http://localhost:18181 >/dev/null 2>&1; then
+            log_success "Prompt Optimizer: 运行中 (http://localhost:18181)"
+        else
+            log_warning "Prompt Optimizer: 未运行"
+        fi
     fi
 }
 
@@ -452,15 +570,30 @@ setup_environment() {
         log_info "  执行: export PATH=\"\$HOME/.local/bin:\$PATH\""
     fi
     
+    # 提示 Prompt Optimizer 安装（可选）
+    echo ""
+    log_info "可选组件: Prompt Optimizer"
+    if [ -d "$HOME/prompt-optimizer" ]; then
+        log_success "✓ prompt-optimizer: 已安装"
+    else
+        log_warning "✗ prompt-optimizer: 未安装（可选）"
+        log_info "  安装命令:"
+        log_info "  git clone https://github.com/linshenkx/prompt-optimizer.git ~/prompt-optimizer"
+        log_info "  cd ~/prompt-optimizer && pnpm install"
+    fi
+    
     echo ""
     log_success "========================================="
     log_success "  环境初始化完成！"
     log_success "========================================="
     echo ""
     log_info "下一步操作："
-    echo "  1. 启动服务: npm start"
-    echo "  2. 访问地址: http://localhost:8000"
+    echo "  1. 测试运行:     npm start"
+    echo "  2. 访问地址:     http://localhost:8000"
     echo "  3. 安装系统服务: sudo $0 install"
+    echo "  4. 启动服务:     sudo $0 start"
+    echo ""
+    log_info "Prompt Optimizer 将在系统服务启动时自动启动（如果已安装）"
     echo ""
 }
 

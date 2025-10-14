@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "setup": "npm install && echo '\\n提示：请手动安装 pdf2zh-next:\\n  pip install uv\\n  uv tool install --python 3.12 pdf2zh-next\\n'"
+    "setup": "./service-manager.sh setup"
   },
   "keywords": [
     "iir",

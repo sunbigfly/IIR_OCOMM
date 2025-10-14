@@ -92,8 +92,13 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 强制显示滚动条，消除宽度跳动 */
-  overflow-y: scroll;
+  /* 固定布局：导航栏固定，内容区域滚动 */
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* body不滚动 */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 /* ============================================
@@ -135,8 +140,8 @@ body {
   background: var(--google-white);
   border-bottom: 1px solid var(--google-grey-200);
   box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
-  position: sticky;
-  top: 0;
+  position: relative; /* 改为relative，配合flex布局 */
+  flex: 0 0 auto; /* 固定大小，不伸缩 */
   z-index: var(--z-nav);
   padding: 0 24px;
 }
@@ -281,14 +286,32 @@ body {
   max-width: 100%;
   width: 100%;
   margin: 0;
-  padding: 16px 24px;
+  /* 配合body的flex布局：占据剩余空间并允许滚动 */
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
 }
 
-/* 头部样式 */
+/* 隐藏滚动条 - Webkit浏览器 (Chrome/Safari) */
+.container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 头部样式 - 固定不滚动，绝对居中 */
 header {
-  margin-bottom: 20px;
-  padding: 16px 24px 12px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 20px 24px 16px;
   text-align: center;
+  background: var(--google-white);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 header h1 {
@@ -311,7 +334,7 @@ header h1 {
   padding: 20px 24px;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  margin-bottom: 20px;
+  margin: 0 24px 20px 24px;
   border: 1px solid var(--google-grey-200);
 }
 
@@ -657,6 +680,7 @@ header h1 {
   box-shadow: var(--box-shadow);
   border: 1px solid var(--google-grey-200);
   overflow: visible;
+  margin: 0 24px 20px 24px;
 }
 
 .results-header {
@@ -782,6 +806,14 @@ header h1 {
   max-height: 600px;
   overflow-y: auto;
   width: 100%;
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-container::-webkit-scrollbar,
+.history-table-container::-webkit-scrollbar {
+  display: none;
 }
 
 .history-table-container {
@@ -965,28 +997,7 @@ header h1 {
   }
 }
 
-/* 统一滚动条样式 */
-.table-container::-webkit-scrollbar,
-.history-table-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.table-container::-webkit-scrollbar-track,
-.history-table-container::-webkit-scrollbar-track {
-  background: var(--google-grey-100);
-}
-
-.table-container::-webkit-scrollbar-thumb,
-.history-table-container::-webkit-scrollbar-thumb {
-  background: var(--google-grey-300);
-  border-radius: 4px;
-}
-
-.table-container::-webkit-scrollbar-thumb:hover,
-.history-table-container::-webkit-scrollbar-thumb:hover {
-  background: var(--google-grey-600);
-}
+/* 滚动条样式已统一隐藏（见上方定义） */
 
 .sr-only {
   position: absolute;
@@ -1090,6 +1101,13 @@ header h1 {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.modal-body::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-hint {
@@ -1163,6 +1181,13 @@ header h1 {
   padding: 0;
   max-height: 600px;
   overflow-y: auto;
+  /* 隐藏滚动条 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.handbook-list::-webkit-scrollbar {
+  display: none;
 }
 
 .handbook-item {
@@ -1279,7 +1304,7 @@ header h1 {
   padding: 24px;
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  margin-bottom: 20px;
+  margin: 0 24px 20px 24px;
   border: 1px solid var(--google-grey-200);
 }
 
@@ -1500,6 +1525,7 @@ header h1 {
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   border: 1px solid var(--google-grey-200);
+  margin: 0 24px 20px 24px;
 }
 
 .history-header {
@@ -1756,35 +1782,13 @@ header h1 {
    首页专属样式
    ============================================ */
 
-.hero-section {
-  text-align: center;
-  padding: 60px 24px 40px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.hero-title {
-  font-size: 48px;
-  font-weight: 400;
-  color: var(--google-grey-900);
-  margin-bottom: 16px;
-  letter-spacing: -1px;
-}
-
-.hero-subtitle {
-  font-size: 18px;
-  color: var(--google-grey-600);
-  margin-bottom: 48px;
-  line-height: 1.6;
-}
-
 .cards-container {
   display: flex;
   flex-wrap: nowrap;
   gap: 24px;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 24px 60px;
+  padding: 0 24px 40px 24px;
 }
 
 .system-card {
@@ -1857,14 +1861,6 @@ header h1 {
 }
 
 @media (max-width: 768px) {
-  .hero-title {
-    font-size: 32px;
-  }
-  
-  .hero-subtitle {
-    font-size: 16px;
-  }
-  
   .cards-container {
     padding: 0 16px 40px;
     gap: 16px;

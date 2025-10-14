@@ -52,6 +52,15 @@ function createApp() {
     }
   }));
 
+  // 静态文件服务 - optimizer目录
+  app.use('/optimizer', express.static(path.join(config.publicDir, 'optimizer'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.set('Cache-Control', config.cache.html);
+      }
+    }
+  }));
+
   // 注册路由
   registerRoutes(app);
 

@@ -33,5 +33,10 @@ router.get('/translator', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'translator/index.html'));
 });
 
+// Prompt优化器页面
+router.get('/optimizer', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'optimizer/index.html'));
+});
+
 module.exports = router;
 
