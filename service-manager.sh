@@ -273,93 +273,166 @@ uninstall_service() {
     log_success "服务卸载完成!"
 }
 
-# 检查并启动 Prompt Optimizer
+# 检查端口是否被占用
+check_port() {
+    local port=$1
+    
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -i:"$port" >/dev/null 2>&1
+        return $?
+    fi
+    
+    # 备用方案：curl 探测
+    curl -s --connect-timeout 1 "http://localhost:$port" >/dev/null 2>&1
+    return $?
+}
+
+# 通过端口获取进程 PID
+get_pid_by_port() {
+    local port=$1
+    
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -ti:"$port" 2>/dev/null | head -1
+    else
+        # 备用方案：ss + awk
+        ss -tulpn 2>/dev/null | grep ":$port" | awk -F'pid=' '{print $2}' | awk '{print $1}' | head -1
+    fi
+}
+
+# 启动 Prompt Optimizer
 start_optimizer() {
+    local port=18181
     log_info "检查 Prompt Optimizer 服务..."
     
-    # 检查端口 18181 是否被占用
-    if command -v lsof >/dev/null 2>&1; then
-        if lsof -i:18181 >/dev/null 2>&1; then
-            log_success "Prompt Optimizer 已运行在 http://localhost:18181"
-            return 0
-        fi
-    elif curl -s http://localhost:18181 >/dev/null 2>&1; then
-        log_success "Prompt Optimizer 已运行在 http://localhost:18181"
+    # 端口已占用 = 服务已运行
+    if check_port "$port"; then
+        log_success "Prompt Optimizer 已运行在 http://localhost:$port"
         return 0
     fi
     
     log_warning "Prompt Optimizer 未运行，正在启动..."
     
-    # 检查目录是否存在
+    # 确定用户和目录
+    local real_user="${SUDO_USER:-$USER_NAME}"
     local optimizer_dir
-    if [ "$EUID" -eq 0 ]; then
-        local real_user="${SUDO_USER:-$USER_NAME}"
-        optimizer_dir=$(eval echo "~$real_user/prompt-optimizer")
-    else
+    if [ "$real_user" = "root" ] || [ -z "$real_user" ]; then
+        real_user="$USER_NAME"
         optimizer_dir="$HOME/prompt-optimizer"
+    else
+        optimizer_dir=$(eval echo "~$real_user/prompt-optimizer")
     fi
     
+    # 检查目录
     if [ ! -d "$optimizer_dir" ]; then
         log_warning "未找到 $optimizer_dir"
         log_info "Prompt Optimizer 可选，主服务仍将启动"
         return 0
     fi
     
-    # 检查 pnpm
-    if ! command -v pnpm >/dev/null 2>&1; then
+    # 自动修改源码：隐藏优化器顶部的3个按钮
+    local layout_file="$optimizer_dir/packages/ui/src/components/MainLayout.vue"
+    if [ -f "$layout_file" ]; then
+        # 检查是否已经修改过（避免重复添加）
+        if ! grep -q "hide-optimizer-buttons" "$layout_file" 2>/dev/null; then
+            log_info "正在隐藏优化器顶部的3个按钮..."
+            
+            # 在 </style> 标签前插入隐藏CSS
+            sed -i '/<\/style>$/i\
+/* 隐藏辅助功能区的3个按钮（主题切换、GitHub、语言切换）- hide-optimizer-buttons */\
+.nav-actions > *:nth-last-child(1),\
+.nav-actions > *:nth-last-child(2),\
+.nav-actions > *:nth-last-child(3) {\
+  display: none !important;\
+}' "$layout_file"
+            
+            log_success "✓ 已自动隐藏优化器顶部的3个按钮"
+        fi
+    fi
+    
+    # 检查 pnpm（智能查找）
+    local pnpm_cmd=""
+    local user_home=$(eval echo "~$real_user")
+    
+    # 尝试多个可能的 pnpm 路径
+    local pnpm_paths=(
+        "$user_home/.local/bin/pnpm"
+        "$user_home/.local/share/pnpm/pnpm"
+        "/usr/local/bin/pnpm"
+        "/usr/bin/pnpm"
+    )
+    
+    for path in "${pnpm_paths[@]}"; do
+        if [ -x "$path" ]; then
+            pnpm_cmd="$path"
+            log_info "找到 pnpm: $pnpm_cmd"
+            break
+        fi
+    done
+    
+    if [ -z "$pnpm_cmd" ]; then
         log_warning "pnpm 未安装，跳过 Prompt Optimizer"
+        log_info "  安装命令: npm install -g pnpm"
         return 0
     fi
     
-    # 以真实用户身份启动
-    local start_cmd="cd $optimizer_dir && nohup pnpm dev:desktop > /tmp/prompt-optimizer.log 2>&1 &"
+    # 直接执行启动命令（不用字符串拼接）
+    local log_file="/tmp/prompt-optimizer.log"
     
     if [ "$EUID" -eq 0 ]; then
-        local real_user="${SUDO_USER:-$USER_NAME}"
-        sudo -u "$real_user" bash -c "$start_cmd"
+        sudo -u "$real_user" bash <<EOF >/dev/null 2>&1 &
+cd "$optimizer_dir" || exit 1
+exec "$pnpm_cmd" dev:desktop >> "$log_file" 2>&1
+EOF
     else
-        bash -c "$start_cmd"
+        (cd "$optimizer_dir" && exec "$pnpm_cmd" dev:desktop >> "$log_file" 2>&1) &
     fi
     
-    echo $! > /tmp/prompt-optimizer.pid
-    
-    # 等待启动（最多15秒）
+    # 等待端口响应（最多15秒）
     log_info "等待 Prompt Optimizer 启动..."
-    for i in {1..15}; do
-        if curl -s http://localhost:18181 >/dev/null 2>&1; then
+    local timeout=15
+    for i in $(seq 1 $timeout); do
+        if check_port "$port"; then
             log_success "Prompt Optimizer 启动成功！"
             return 0
         fi
         sleep 1
-        echo -n "."
+        [ $((i % 3)) -eq 0 ] && echo -n "."
     done
     
     echo ""
-    log_warning "Prompt Optimizer 启动超时，请检查日志: tail -f /tmp/prompt-optimizer.log"
+    log_warning "Prompt Optimizer 启动超时，请检查日志: tail -f $log_file"
+    return 1
 }
 
 # 停止 Prompt Optimizer
 stop_optimizer() {
+    local port=18181
     log_info "停止 Prompt Optimizer..."
     
-    if [ -f /tmp/prompt-optimizer.pid ]; then
-        local pid=$(cat /tmp/prompt-optimizer.pid)
-        if ps -p $pid > /dev/null 2>&1; then
-            kill $pid 2>/dev/null
-            rm /tmp/prompt-optimizer.pid
-            log_success "Prompt Optimizer 已停止"
-        else
-            rm /tmp/prompt-optimizer.pid
-        fi
+    local pid=$(get_pid_by_port "$port")
+    
+    if [ -z "$pid" ]; then
+        log_info "Prompt Optimizer 未运行"
+        return 0
     fi
     
-    # 通过端口查找并杀死
-    if command -v lsof >/dev/null 2>&1; then
-        local pid=$(lsof -ti:18181 2>/dev/null)
-        if [ ! -z "$pid" ]; then
-            kill $pid 2>/dev/null
-            log_success "Prompt Optimizer 进程已终止"
-        fi
+    # 优雅终止
+    if kill -TERM "$pid" 2>/dev/null; then
+        # 等待进程退出（最多5秒）
+        for i in {1..5}; do
+            if ! ps -p "$pid" >/dev/null 2>&1; then
+                log_success "Prompt Optimizer 已停止"
+                return 0
+            fi
+            sleep 1
+        done
+        
+        # 强制杀死
+        kill -KILL "$pid" 2>/dev/null
+        log_success "Prompt Optimizer 已强制停止"
+    else
+        log_warning "无法停止进程 $pid"
+        return 1
     fi
 }
 
@@ -435,7 +508,7 @@ show_status() {
         
         # 检查 Prompt Optimizer 状态
         echo ""
-        if curl -s http://localhost:18181 >/dev/null 2>&1; then
+        if check_port 18181; then
             log_success "Prompt Optimizer: 运行中 (http://localhost:18181)"
         else
             log_warning "Prompt Optimizer: 未运行"
