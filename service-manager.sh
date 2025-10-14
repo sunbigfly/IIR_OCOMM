@@ -329,24 +329,28 @@ start_optimizer() {
         return 0
     fi
     
-    # 自动修改源码：隐藏优化器顶部的3个按钮
+    # 自动修改源码：隐藏优化器顶部的2个按钮（保留主题切换）
     local layout_file="$optimizer_dir/packages/ui/src/components/MainLayout.vue"
     if [ -f "$layout_file" ]; then
-        # 检查是否已经修改过（避免重复添加）
-        if ! grep -q "hide-optimizer-buttons" "$layout_file" 2>/dev/null; then
-            log_info "正在隐藏优化器顶部的3个按钮..."
-            
-            # 在 </style> 标签前插入隐藏CSS
-            sed -i '/<\/style>$/i\
-/* 隐藏辅助功能区的3个按钮（主题切换、GitHub、语言切换）- hide-optimizer-buttons */\
-.nav-actions > *:nth-last-child(1),\
-.nav-actions > *:nth-last-child(2),\
-.nav-actions > *:nth-last-child(3) {\
+        # 先删除旧的修改（如果存在）
+        if grep -q "hide-optimizer-buttons" "$layout_file" 2>/dev/null; then
+            log_info "检测到旧的按钮隐藏配置，正在更新..."
+            # 删除从 hide-optimizer-buttons 注释到下一个 } 之间的所有行
+            sed -i '/hide-optimizer-buttons/,/^}$/d' "$layout_file"
+        fi
+        
+        # 注入新的CSS（只隐藏2个按钮，保留主题切换）
+        log_info "正在隐藏优化器顶部的按钮（保留主题切换）..."
+        
+        # 在 </style> 标签前插入隐藏CSS
+        sed -i '/<\/style>$/i\
+/* 隐藏辅助功能区的2个按钮（GitHub、语言切换），保留主题切换 - hide-optimizer-buttons */\
+.nav-actions > *:nth-last-child(1),  /* 语言切换 */\
+.nav-actions > *:nth-last-child(2) { /* GitHub按钮 */\
   display: none !important;\
 }' "$layout_file"
-            
-            log_success "✓ 已自动隐藏优化器顶部的3个按钮"
-        fi
+        
+        log_success "✓ 已自动隐藏 GitHub 和语言切换按钮，保留主题切换"
     fi
     
     # 检查 pnpm（智能查找）
