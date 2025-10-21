@@ -59,7 +59,7 @@
     <div class="optimizer-container">
       <iframe 
         class="optimizer-frame" 
-        src="http://localhost:18181" 
+        src="" 
         title="Prompt Optimizer"
         allow="clipboard-read; clipboard-write"
       ></iframe>
@@ -68,6 +68,10 @@
     <script>
       const iframe = document.querySelector('.optimizer-frame');
       const nav = document.querySelector('.main-nav');
+      
+      // 动态设置iframe的src，支持局域网访问
+      const hostname = window.location.hostname;
+      iframe.src = `http://${hostname}:18181`;
       
       // 动态调整iframe高度 = 窗口高度 + 导航栏高度（补偿被吃掉的部分）
       function adjustIframeHeight() {

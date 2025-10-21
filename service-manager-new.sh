@@ -178,27 +178,26 @@ start_optimizer() {
     log "启动日志: $log_file"
     
     if [ "$EUID" -eq 0 ]; then
-        sudo -u "$user" bash -c "cd '$optimizer_dir' && '$pnpm_cmd' dev:desktop" >"$log_file" 2>&1 &
+        sudo -u "$user" bash -c "cd '$optimizer_dir' && setsid bash -c 'exec \"$pnpm_cmd\" dev </dev/null >\"$log_file\" 2>&1' &"
     else
-        (cd "$optimizer_dir" && "$pnpm_cmd" dev:desktop) >"$log_file" 2>&1 &
+        (cd "$optimizer_dir" && setsid bash -c "exec '$pnpm_cmd' dev </dev/null >'$log_file' 2>&1") &
     fi
-    
-    local optimizer_pid=$!
     
     # 等待启动（现实时间：构建+启动需要60秒）
     local timeout=60
     log "等待 Optimizer 构建和启动（最多 ${timeout}s）..."
     for i in $(seq 1 $timeout); do
-        # 检查进程是否还活着
-        if ! kill -0 "$optimizer_pid" 2>/dev/null; then
-            die "Optimizer 进程已退出，查看日志: tail $log_file"
-        fi
-        
-        # 检查端口是否开放
+        # 检查端口是否开放（主要检测方式）
         if lsof -i:$OPTIMIZER_PORT >/dev/null 2>&1; then
             SYSTEM_STATE["optimizer_running"]="true"
             success "Prompt Optimizer 启动成功 (用时 ${i}s)"
             return 0
+        fi
+        
+        # 检查日志中是否有错误
+        if [ -f "$log_file" ] && grep -q "ELIFECYCLE\|Error:" "$log_file" 2>/dev/null; then
+            warn "Optimizer 启动可能遇到错误，查看日志: tail $log_file"
+            # 继续等待，可能只是中间错误
         fi
         
         [ $((i % 10)) -eq 0 ] && log "仍在等待... (${i}/${timeout}s)"
