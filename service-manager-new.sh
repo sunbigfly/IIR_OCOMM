@@ -102,6 +102,30 @@ ensure_root() {
     [ "$EUID" -eq 0 ] || die "需要 root 权限，请使用 sudo"
 }
 
+# === 端口清理（重启前清理占用端口的进程）===
+cleanup_ports() {
+    log "检查并清理端口占用..."
+    
+    local ports=($OPTIMIZER_PORT $DUTYINFO_PORT $MAIN_PORT)
+    local cleaned=0
+    
+    for port in "${ports[@]}"; do
+        local pids=$(lsof -ti:$port 2>/dev/null)
+        if [ -n "$pids" ]; then
+            log "清理端口 $port 上的进程: $pids"
+            echo "$pids" | xargs -r kill -TERM 2>/dev/null || echo "$pids" | xargs -r kill -KILL 2>/dev/null
+            cleaned=$((cleaned + 1))
+            sleep 1
+        fi
+    done
+    
+    if [ $cleaned -gt 0 ]; then
+        success "已清理 $cleaned 个端口占用"
+    else
+        log "所有端口未被占用"
+    fi
+}
+
 # === 依赖安装（统一处理所有依赖）===
 install_dependencies() {
     log "安装项目依赖..."
@@ -342,6 +366,30 @@ DUTYINFO_PORT=7860
 # 日志函数
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] \$1" >&2; }
 
+# 端口清理函数
+cleanup_ports() {
+    log "检查并清理端口占用..."
+    local ports=(\$OPTIMIZER_PORT \$DUTYINFO_PORT 8000)
+    local cleaned=0
+    
+    for port in "\${ports[@]}"; do
+        local pids=\$(lsof -ti:\$port 2>/dev/null)
+        if [ -n "\$pids" ]; then
+            log "清理端口 \$port 上的进程: \$pids"
+            echo "\$pids" | xargs -r kill -TERM 2>/dev/null || echo "\$pids" | xargs -r kill -KILL 2>/dev/null
+            cleaned=\$((cleaned + 1))
+            sleep 1
+        fi
+    done
+    
+    if [ \$cleaned -gt 0 ]; then
+        log "已清理 \$cleaned 个端口占用"
+    fi
+}
+
+# 启动前清理端口
+cleanup_ports
+
 # 加载完整用户环境（关键修复）
 log "加载用户环境..."
 [ -f "\$USER_HOME/.bashrc" ] && source "\$USER_HOME/.bashrc"
@@ -464,6 +512,9 @@ start_service() {
     # 强制检查系统状态
     detect_system_state
     
+    # 启动前清理端口（避免端口冲突）
+    cleanup_ports
+    
     # 确保 Optimizer 和 DutyInfo 先启动
     start_optimizer
     start_dutyinfo
@@ -482,6 +533,10 @@ stop_service() {
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
     stop_optimizer
     stop_dutyinfo
+    
+    # 清理所有相关端口
+    cleanup_ports
+    
     SYSTEM_STATE["service_running"]="false"
     success "服务已停止"
 }
