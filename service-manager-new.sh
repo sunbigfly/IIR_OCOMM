@@ -102,28 +102,43 @@ ensure_root() {
     [ "$EUID" -eq 0 ] || die "需要 root 权限，请使用 sudo"
 }
 
-# === 端口清理（重启前清理占用端口的进程）===
-cleanup_ports() {
-    log "检查并清理端口占用..."
+# === 环境初始化（统一的环境加载逻辑）===
+load_user_environment() {
+    local user_home="${SYSTEM_STATE["user_home"]}"
     
+    # 加载 bashrc
+    [ -f "$user_home/.bashrc" ] && source "$user_home/.bashrc" 2>/dev/null
+    
+    # 初始化 conda 环境
+    if [ -f "$user_home/anaconda3/etc/profile.d/conda.sh" ]; then
+        source "$user_home/anaconda3/etc/profile.d/conda.sh"
+        conda activate base 2>/dev/null
+    fi
+    
+    # 设置 PATH
+    export PATH="$user_home/anaconda3/bin:$user_home/.local/bin:/usr/local/bin:$PATH"
+}
+
+# === 端口清理===
+cleanup_ports() {
     local ports=($OPTIMIZER_PORT $DUTYINFO_PORT $MAIN_PORT)
     local cleaned=0
     
     for port in "${ports[@]}"; do
         local pids=$(lsof -ti:$port 2>/dev/null)
-        if [ -n "$pids" ]; then
-            log "清理端口 $port 上的进程: $pids"
-            echo "$pids" | xargs -r kill -TERM 2>/dev/null || echo "$pids" | xargs -r kill -KILL 2>/dev/null
+        [ -n "$pids" ] && {
+            echo "$pids" | xargs -r kill -TERM 2>/dev/null
             cleaned=$((cleaned + 1))
-            sleep 1
-        fi
+        }
     done
     
-    if [ $cleaned -gt 0 ]; then
-        success "已清理 $cleaned 个端口占用"
-    else
-        log "所有端口未被占用"
-    fi
+    sleep 0.5
+    # 强制清理残留
+    for port in "${ports[@]}"; do
+        lsof -ti:$port 2>/dev/null | xargs -r kill -KILL 2>/dev/null
+    done
+    
+    [ $cleaned -gt 0 ] && success "已清理 $cleaned 个端口" || log "端口未占用"
 }
 
 # === 依赖安装（统一处理所有依赖）===
@@ -187,87 +202,53 @@ start_optimizer() {
     [ "${SYSTEM_STATE["optimizer_installed"]}" != "true" ] && return 0
     [ "${SYSTEM_STATE["optimizer_running"]}" = "true" ] && return 0
     
-    log "启动 Prompt Optimizer..."
+    log "启动 Optimizer..."
     
     local optimizer_dir="${SYSTEM_STATE["optimizer_dir"]}"
     local user="${SYSTEM_STATE["user"]}"
+    local user_home="${SYSTEM_STATE["user_home"]}"
     
     # 查找 pnpm
-    local pnpm_paths=(
-        "${SYSTEM_STATE["user_home"]}/.local/bin/pnpm"
-        "/usr/local/bin/pnpm"
-        "/usr/bin/pnpm"
-    )
+    load_user_environment
+    local pnpm_cmd=$(command -v pnpm 2>/dev/null || echo "$user_home/.local/bin/pnpm")
     
-    local pnpm_cmd=""
-    for path in "${pnpm_paths[@]}"; do
-        [ -x "$path" ] && pnpm_cmd="$path" && break
-    done
+    [ ! -x "$pnpm_cmd" ] && warn "pnpm 未找到" && return 0
     
-    [ -z "$pnpm_cmd" ] && warn "pnpm 未找到，跳过 Optimizer" && return 0
-    
-    # 启动（后台运行，保留错误输出）
+    # 启动（简化环境传递）
     local log_file="/tmp/optimizer-startup.log"
-    log "启动日志: $log_file"
+    local env_init="[ -f $user_home/.bashrc ] && source $user_home/.bashrc; export PATH=$user_home/anaconda3/bin:$user_home/.local/bin:\$PATH"
     
     if [ "$EUID" -eq 0 ]; then
-        sudo -u "$user" bash -c "cd '$optimizer_dir' && setsid bash -c 'exec \"$pnpm_cmd\" dev </dev/null >\"$log_file\" 2>&1' &"
+        sudo -u "$user" bash -c "$env_init; cd '$optimizer_dir' && setsid '$pnpm_cmd' dev </dev/null >'$log_file' 2>&1 &" &
     else
-        (cd "$optimizer_dir" && setsid bash -c "exec '$pnpm_cmd' dev </dev/null >'$log_file' 2>&1") &
+        bash -c "$env_init; cd '$optimizer_dir' && setsid '$pnpm_cmd' dev </dev/null >'$log_file' 2>&1" &
     fi
     
-    # 等待启动（现实时间：构建+启动需要60秒）
+    # 等待启动（约60秒）
     local timeout=60
-    log "等待 Optimizer 构建和启动（最多 ${timeout}s）..."
     for i in $(seq 1 $timeout); do
-        # 检查端口是否开放（主要检测方式）
-        if lsof -i:$OPTIMIZER_PORT >/dev/null 2>&1; then
+        lsof -i:$OPTIMIZER_PORT >/dev/null 2>&1 && {
             SYSTEM_STATE["optimizer_running"]="true"
-            success "Prompt Optimizer 启动成功 (用时 ${i}s)"
+            success "Optimizer 启动成功 (${i}s)"
             return 0
-        fi
-        
-        # 检查日志中是否有错误
-        if [ -f "$log_file" ] && grep -q "ELIFECYCLE\|Error:" "$log_file" 2>/dev/null; then
-            warn "Optimizer 启动可能遇到错误，查看日志: tail $log_file"
-            # 继续等待，可能只是中间错误
-        fi
-        
-        [ $((i % 10)) -eq 0 ] && log "仍在等待... (${i}/${timeout}s)"
+        }
+        [ $i -eq 1 ] && log "等待 Optimizer 启动（构建中）"
+        [ $((i % 15)) -eq 0 ] && log "  构建中... ${i}s"
         sleep 1
     done
-    
-    warn "Prompt Optimizer 启动超时 (>${timeout}s)，查看日志: tail $log_file"
+    warn "Optimizer 启动超时，查看: tail $log_file"
 }
 
 stop_optimizer() {
-    [ "${SYSTEM_STATE["optimizer_running"]}" != "true" ] && return 0
-    
-    log "停止 Prompt Optimizer..."
-    local pid=$(lsof -ti:$OPTIMIZER_PORT 2>/dev/null | head -1)
-    
-    if [ -n "$pid" ]; then
-        kill -TERM "$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
-        SYSTEM_STATE["optimizer_running"]="false"
-        success "Prompt Optimizer 已停止"
-    fi
+    local pids=$(lsof -ti:$OPTIMIZER_PORT 2>/dev/null)
+    [ -n "$pids" ] && echo "$pids" | xargs -r kill -TERM 2>/dev/null && sleep 0.5
+    lsof -ti:$OPTIMIZER_PORT 2>/dev/null | xargs -r kill -KILL 2>/dev/null
+    SYSTEM_STATE["optimizer_running"]="false"
 }
 
-# === DutyInfo 管理（简化逻辑）===
+# === DutyInfo 管理===
 setup_dutyinfo() {
-    local dutyinfo_dir="${SYSTEM_STATE["dutyinfo_dir"]}"
-    
-    if [ "${SYSTEM_STATE["dutyinfo_installed"]}" != "true" ]; then
-        warn "DutyInfo 未安装 (目录: $dutyinfo_dir)"
-        return 0
-    fi
-    
-    # 检查依赖
-    if ! command -v python3 >/dev/null 2>&1; then
-        warn "Python3 未安装，跳过 DutyInfo"
-        return 0
-    fi
-    
+    [ "${SYSTEM_STATE["dutyinfo_installed"]}" != "true" ] && warn "DutyInfo 未安装" && return 0
     success "DutyInfo 检查完成"
 }
 
@@ -279,62 +260,42 @@ start_dutyinfo() {
     
     local dutyinfo_dir="${SYSTEM_STATE["dutyinfo_dir"]}"
     local user="${SYSTEM_STATE["user"]}"
+    local user_home="${SYSTEM_STATE["user_home"]}"
     
-    # 检查 Python3
-    if ! command -v python3 >/dev/null 2>&1; then
-        warn "Python3 未找到，跳过 DutyInfo"
-        return 0
-    fi
+    [ ! -x "$dutyinfo_dir/start.sh" ] && warn "start.sh 不可执行" && return 0
     
-    # 检查 start.sh
-    if [ ! -x "$dutyinfo_dir/start.sh" ]; then
-        warn "start.sh 不存在或不可执行，跳过 DutyInfo"
-        return 0
-    fi
-    
-    # 启动（后台运行）
+    # 启动（简化环境传递，添加 conda）
     local log_file="/tmp/dutyinfo-startup.log"
-    log "启动日志: $log_file"
+    local env_init="[ -f $user_home/anaconda3/etc/profile.d/conda.sh ] && source $user_home/anaconda3/etc/profile.d/conda.sh && conda activate base; export PATH=$user_home/anaconda3/bin:\$PATH"
     
     if [ "$EUID" -eq 0 ]; then
-        sudo -u "$user" bash -c "cd '$dutyinfo_dir' && setsid bash -c 'exec ./start.sh </dev/null >\"$log_file\" 2>&1' &"
+        sudo -u "$user" bash -c "$env_init; cd '$dutyinfo_dir' && setsid ./start.sh </dev/null >'$log_file' 2>&1 &" &
     else
-        (cd "$dutyinfo_dir" && setsid bash -c "exec ./start.sh </dev/null >'$log_file' 2>&1") &
+        bash -c "$env_init; cd '$dutyinfo_dir' && setsid ./start.sh </dev/null >'$log_file' 2>&1" &
     fi
     
-    # 等待启动
+    # 等待启动（约30秒）
     local timeout=30
-    log "等待 DutyInfo 启动（最多 ${timeout}s）..."
     for i in $(seq 1 $timeout); do
-        if lsof -i:$DUTYINFO_PORT >/dev/null 2>&1; then
+        lsof -i:$DUTYINFO_PORT >/dev/null 2>&1 && {
             SYSTEM_STATE["dutyinfo_running"]="true"
-            success "DutyInfo 启动成功 (用时 ${i}s)"
+            success "DutyInfo 启动成功 (${i}s)"
             return 0
-        fi
-        
-        # 检查日志中是否有错误
-        if [ -f "$log_file" ] && grep -qi "error\|fail\|❌" "$log_file" 2>/dev/null; then
-            warn "DutyInfo 启动可能遇到错误，查看日志: tail $log_file"
-        fi
-        
-        [ $((i % 10)) -eq 0 ] && log "仍在等待... (${i}/${timeout}s)"
+        }
+        [ $i -eq 1 ] && log "等待 DutyInfo 启动"
+        [ $((i % 10)) -eq 0 ] && log "  等待中... ${i}s"
         sleep 1
     done
     
-    warn "DutyInfo 启动超时 (>${timeout}s)，查看日志: tail $log_file"
+    grep -qi "未安装\|not found" "$log_file" 2>/dev/null && warn "DutyInfo 启动失败（依赖问题）" || warn "DutyInfo 启动超时"
+    log "查看日志: tail $log_file"
 }
 
 stop_dutyinfo() {
-    [ "${SYSTEM_STATE["dutyinfo_running"]}" != "true" ] && return 0
-    
-    log "停止 DutyInfo..."
-    local pid=$(lsof -ti:$DUTYINFO_PORT 2>/dev/null | head -1)
-    
-    if [ -n "$pid" ]; then
-        kill -TERM "$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
-        SYSTEM_STATE["dutyinfo_running"]="false"
-        success "DutyInfo 已停止"
-    fi
+    local pids=$(lsof -ti:$DUTYINFO_PORT 2>/dev/null)
+    [ -n "$pids" ] && echo "$pids" | xargs -r kill -TERM 2>/dev/null && sleep 0.5
+    lsof -ti:$DUTYINFO_PORT 2>/dev/null | xargs -r kill -KILL 2>/dev/null
+    SYSTEM_STATE["dutyinfo_running"]="false"
 }
 
 # === 服务管理（简化版）===
@@ -528,13 +489,11 @@ start_service() {
 
 stop_service() {
     ensure_root
-    
     log "停止服务..."
+    
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
     stop_optimizer
     stop_dutyinfo
-    
-    # 清理所有相关端口
     cleanup_ports
     
     SYSTEM_STATE["service_running"]="false"
