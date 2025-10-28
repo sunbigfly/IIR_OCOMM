@@ -297,11 +297,37 @@ stop_service() {
 uninstall_service() {
     [ "$EUID" -ne 0 ] && die "需要 root 权限"
     
-    stop_service
+    log "完整卸载服务..."
+    
+    # 1. 停止服务
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    cleanup_ports
+    
+    # 2. 禁用并删除服务
     systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-    rm -f "$SERVICE_FILE" "/usr/local/bin/${SERVICE_NAME}-env"
+    rm -f "$SERVICE_FILE"
     systemctl daemon-reload
-    ok "服务已卸载"
+    systemctl reset-failed 2>/dev/null || true
+    
+    # 3. 清理wrapper脚本（新旧版本）
+    rm -f "/usr/local/bin/${SERVICE_NAME}-env"
+    rm -f "/usr/local/bin/${SERVICE_NAME}-wrapper"
+    
+    # 4. 清理临时日志
+    rm -f /tmp/optimizer*.log
+    rm -f /tmp/dutyinfo*.log
+    
+    echo ""
+    ok "========================================="
+    ok "  服务已完全卸载！"
+    ok "========================================="
+    echo ""
+    log "已清理:"
+    echo "  ✓ systemd 服务文件"
+    echo "  ✓ wrapper 脚本（新旧版本）"
+    echo "  ✓ 临时日志文件"
+    echo "  ✓ 运行中的进程"
+    echo ""
 }
 
 # ============ 状态显示 ============
