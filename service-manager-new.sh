@@ -81,7 +81,7 @@ detect_system_state() {
     [ -d "${SYSTEM_STATE["optimizer_dir"]}" ] && SYSTEM_STATE["optimizer_installed"]="true"
     
     # DutyInfo状态
-    SYSTEM_STATE["dutyinfo_dir"]="${SYSTEM_STATE["user_home"]}/tmpprj/dutyinfo/web_ui"
+    SYSTEM_STATE["dutyinfo_dir"]="${SYSTEM_STATE["user_home"]}/dutyinfo/web_ui"
     [ -d "${SYSTEM_STATE["dutyinfo_dir"]}" ] && SYSTEM_STATE["dutyinfo_installed"]="true"
     
     # 检查端口占用
@@ -336,7 +336,7 @@ set -e
 USER_HOME="$user_home"
 OPTIMIZER_DIR="\$USER_HOME/prompt-optimizer"
 OPTIMIZER_PORT=18181
-DUTYINFO_DIR="\$USER_HOME/tmpprj/dutyinfo/web_ui"
+DUTYINFO_DIR="\$USER_HOME/dutyinfo/web_ui"
 DUTYINFO_PORT=7860
 
 # 日志函数
@@ -347,8 +347,15 @@ log "加载用户环境..."
 [ -f "\$USER_HOME/.bashrc" ] && source "\$USER_HOME/.bashrc"
 [ -f "\$USER_HOME/.profile" ] && source "\$USER_HOME/.profile"
 
-# 设置完整PATH（确保pnpm可用）
-export PATH="\$USER_HOME/.local/bin:/usr/local/bin:\$PATH"
+# 初始化 conda 环境
+if [ -f "\$USER_HOME/anaconda3/etc/profile.d/conda.sh" ]; then
+    log "初始化 conda 环境..."
+    source "\$USER_HOME/anaconda3/etc/profile.d/conda.sh"
+    conda activate base
+fi
+
+# 设置完整PATH（确保pnpm和conda可用）
+export PATH="\$USER_HOME/anaconda3/bin:\$USER_HOME/.local/bin:/usr/local/bin:\$PATH"
 
 # 验证pnpm
 PNPM_CMD="\$(command -v pnpm 2>/dev/null || echo "")"
