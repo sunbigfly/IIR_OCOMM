@@ -10,6 +10,7 @@ readonly SERVICE_NAME="iir-ocomm"
 readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 readonly CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly OPTIMIZER_PORT=18181
+readonly DUTYINFO_PORT=7860
 readonly MAIN_PORT=8000
 
 # 颜色（Linus风格：简单直接）
@@ -27,6 +28,9 @@ declare -A SYSTEM_STATE=(
     ["optimizer_dir"]=""
     ["optimizer_installed"]="false"
     ["optimizer_running"]="false"
+    ["dutyinfo_dir"]=""
+    ["dutyinfo_installed"]="false"
+    ["dutyinfo_running"]="false"
     ["service_installed"]="false"
     ["service_running"]="false"
 )
@@ -76,9 +80,14 @@ detect_system_state() {
     SYSTEM_STATE["optimizer_dir"]="${SYSTEM_STATE["user_home"]}/prompt-optimizer"
     [ -d "${SYSTEM_STATE["optimizer_dir"]}" ] && SYSTEM_STATE["optimizer_installed"]="true"
     
+    # DutyInfo状态
+    SYSTEM_STATE["dutyinfo_dir"]="${SYSTEM_STATE["user_home"]}/tmpprj/dutyinfo/web_ui"
+    [ -d "${SYSTEM_STATE["dutyinfo_dir"]}" ] && SYSTEM_STATE["dutyinfo_installed"]="true"
+    
     # 检查端口占用
     if command -v lsof >/dev/null 2>&1; then
         lsof -i:$OPTIMIZER_PORT >/dev/null 2>&1 && SYSTEM_STATE["optimizer_running"]="true"
+        lsof -i:$DUTYINFO_PORT >/dev/null 2>&1 && SYSTEM_STATE["dutyinfo_running"]="true"
     fi
     
     # 服务状态
@@ -220,6 +229,90 @@ stop_optimizer() {
     fi
 }
 
+# === DutyInfo 管理（简化逻辑）===
+setup_dutyinfo() {
+    local dutyinfo_dir="${SYSTEM_STATE["dutyinfo_dir"]}"
+    
+    if [ "${SYSTEM_STATE["dutyinfo_installed"]}" != "true" ]; then
+        warn "DutyInfo 未安装 (目录: $dutyinfo_dir)"
+        return 0
+    fi
+    
+    # 检查依赖
+    if ! command -v python3 >/dev/null 2>&1; then
+        warn "Python3 未安装，跳过 DutyInfo"
+        return 0
+    fi
+    
+    success "DutyInfo 检查完成"
+}
+
+start_dutyinfo() {
+    [ "${SYSTEM_STATE["dutyinfo_installed"]}" != "true" ] && return 0
+    [ "${SYSTEM_STATE["dutyinfo_running"]}" = "true" ] && return 0
+    
+    log "启动 DutyInfo..."
+    
+    local dutyinfo_dir="${SYSTEM_STATE["dutyinfo_dir"]}"
+    local user="${SYSTEM_STATE["user"]}"
+    
+    # 检查 Python3
+    if ! command -v python3 >/dev/null 2>&1; then
+        warn "Python3 未找到，跳过 DutyInfo"
+        return 0
+    fi
+    
+    # 检查 start.sh
+    if [ ! -x "$dutyinfo_dir/start.sh" ]; then
+        warn "start.sh 不存在或不可执行，跳过 DutyInfo"
+        return 0
+    fi
+    
+    # 启动（后台运行）
+    local log_file="/tmp/dutyinfo-startup.log"
+    log "启动日志: $log_file"
+    
+    if [ "$EUID" -eq 0 ]; then
+        sudo -u "$user" bash -c "cd '$dutyinfo_dir' && setsid bash -c 'exec ./start.sh </dev/null >\"$log_file\" 2>&1' &"
+    else
+        (cd "$dutyinfo_dir" && setsid bash -c "exec ./start.sh </dev/null >'$log_file' 2>&1") &
+    fi
+    
+    # 等待启动
+    local timeout=30
+    log "等待 DutyInfo 启动（最多 ${timeout}s）..."
+    for i in $(seq 1 $timeout); do
+        if lsof -i:$DUTYINFO_PORT >/dev/null 2>&1; then
+            SYSTEM_STATE["dutyinfo_running"]="true"
+            success "DutyInfo 启动成功 (用时 ${i}s)"
+            return 0
+        fi
+        
+        # 检查日志中是否有错误
+        if [ -f "$log_file" ] && grep -qi "error\|fail\|❌" "$log_file" 2>/dev/null; then
+            warn "DutyInfo 启动可能遇到错误，查看日志: tail $log_file"
+        fi
+        
+        [ $((i % 10)) -eq 0 ] && log "仍在等待... (${i}/${timeout}s)"
+        sleep 1
+    done
+    
+    warn "DutyInfo 启动超时 (>${timeout}s)，查看日志: tail $log_file"
+}
+
+stop_dutyinfo() {
+    [ "${SYSTEM_STATE["dutyinfo_running"]}" != "true" ] && return 0
+    
+    log "停止 DutyInfo..."
+    local pid=$(lsof -ti:$DUTYINFO_PORT 2>/dev/null | head -1)
+    
+    if [ -n "$pid" ]; then
+        kill -TERM "$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null
+        SYSTEM_STATE["dutyinfo_running"]="false"
+        success "DutyInfo 已停止"
+    fi
+}
+
 # === 服务管理（简化版）===
 create_service() {
     ensure_root
@@ -243,6 +336,8 @@ set -e
 USER_HOME="$user_home"
 OPTIMIZER_DIR="\$USER_HOME/prompt-optimizer"
 OPTIMIZER_PORT=18181
+DUTYINFO_DIR="\$USER_HOME/tmpprj/dutyinfo/web_ui"
+DUTYINFO_PORT=7860
 
 # 日志函数
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] \$1" >&2; }
@@ -289,6 +384,36 @@ else
     log "Optimizer 未安装或 pnpm 不可用，跳过"
 fi
 
+# 启动 DutyInfo（如果存在）
+if [ -d "\$DUTYINFO_DIR" ] && [ -x "\$DUTYINFO_DIR/start.sh" ]; then
+    log "启动 DutyInfo..."
+    
+    # 使用后台启动方式
+    (
+        cd "\$DUTYINFO_DIR" || exit 1
+        
+        # 启动 Gradio 服务
+        ./start.sh >/tmp/dutyinfo-service.log 2>&1 &
+        DUTYINFO_PID=\$!
+        log "DutyInfo PID: \$DUTYINFO_PID"
+        
+        # 等待启动（最多30秒）
+        for i in \$(seq 1 30); do
+            if command -v lsof >/dev/null 2>&1 && lsof -i:\$DUTYINFO_PORT >/dev/null 2>&1; then
+                log "DutyInfo 启动成功 (用时 \${i}s)"
+                break
+            fi
+            [ \$i -eq 30 ] && log "DutyInfo 启动超时，继续启动主服务..."
+            sleep 1
+        done
+    ) &
+    
+    # 给 DutyInfo 一些启动时间
+    sleep 3
+else
+    log "DutyInfo 未安装或 start.sh 不可用，跳过"
+fi
+
 # 启动主服务
 log "启动主服务..."
 cd "$CURRENT_DIR" || exit 1
@@ -332,8 +457,9 @@ start_service() {
     # 强制检查系统状态
     detect_system_state
     
-    # 确保 Optimizer 先启动
+    # 确保 Optimizer 和 DutyInfo 先启动
     start_optimizer
+    start_dutyinfo
     
     log "启动主服务..."
     systemctl start "$SERVICE_NAME"
@@ -348,6 +474,7 @@ stop_service() {
     log "停止服务..."
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
     stop_optimizer
+    stop_dutyinfo
     SYSTEM_STATE["service_running"]="false"
     success "服务已停止"
 }
@@ -392,6 +519,12 @@ show_status() {
         warn "Optimizer: 未运行"
     fi
     
+    if [ "${SYSTEM_STATE["dutyinfo_running"]}" = "true" ]; then
+        success "DutyInfo: 运行中 (http://localhost:$DUTYINFO_PORT)"
+    else
+        warn "DutyInfo: 未运行"
+    fi
+    
     echo "=================================="
 }
 
@@ -405,8 +538,9 @@ deploy() {
     # 2. 安装依赖
     install_dependencies
     
-    # 3. 设置 Optimizer
+    # 3. 设置 Optimizer 和 DutyInfo
     setup_optimizer
+    setup_dutyinfo
     
     # 4. 创建服务（如果需要 root）
     if [ "$EUID" -eq 0 ]; then

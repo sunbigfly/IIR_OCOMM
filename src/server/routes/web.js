@@ -38,5 +38,10 @@ router.get('/optimizer', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'optimizer/index.html'));
 });
 
+// 值日提醒系统页面
+router.get('/dutyinfo', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'dutyinfo/index.html'));
+});
+
 module.exports = router;
 

@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1a73e8" />
-    <meta name="description" content="Prompt优化器 - 专业的AI提示词优化工具" />
+    <meta name="description" content="值日提醒系统 - 智能值日管理工具" />
     <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
-    <title>Prompt优化器 - Pharma Toolbox</title>
+    <title>值日提醒 - Pharma Toolbox</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/common/styles/main.css?v=1.1.2" />
     <style>
       /* 配合全局flex布局：内容区域可滚动 */
-      .optimizer-container {
+      .dutyinfo-container {
         flex: 1 1 auto; /* 占据剩余空间 */
         overflow-y: auto; /* 允许滚动 */
         width: 100%;
@@ -22,10 +22,10 @@
         scrollbar-width: none;
         -ms-overflow-style: none;
       }
-      .optimizer-container::-webkit-scrollbar {
+      .dutyinfo-container::-webkit-scrollbar {
         display: none;
       }
-      .optimizer-frame {
+      .dutyinfo-frame {
         border: none;
         width: 100%;
         height: 100vh; /* JS会补偿导航栏高度 */
@@ -51,28 +51,28 @@
           <a href="/fda" class="nav-link">FDA检索</a>
           <a href="/handbook" class="nav-link">辅料手册</a>
           <a href="/translator" class="nav-link">PDF翻译</a>
-          <a href="/optimizer" class="nav-link active">Prompt优化</a>
-          <a href="/dutyinfo" class="nav-link">值日提醒</a>
+          <a href="/optimizer" class="nav-link">Prompt优化</a>
+          <a href="/dutyinfo" class="nav-link active">值日提醒</a>
         </div>
       </div>
     </nav>
 
-    <div class="optimizer-container">
+    <div class="dutyinfo-container">
       <iframe 
-        class="optimizer-frame" 
+        class="dutyinfo-frame" 
         src="" 
-        title="Prompt Optimizer"
+        title="Duty Info System"
         allow="clipboard-read; clipboard-write"
       ></iframe>
     </div>
 
     <script>
-      const iframe = document.querySelector('.optimizer-frame');
+      const iframe = document.querySelector('.dutyinfo-frame');
       const nav = document.querySelector('.main-nav');
       
       // 动态设置iframe的src，支持局域网访问
       const hostname = window.location.hostname;
-      iframe.src = `http://${hostname}:18181`;
+      iframe.src = `http://${hostname}:7860`;
       
       // 动态调整iframe高度 = 窗口高度 + 导航栏高度（补偿被吃掉的部分）
       function adjustIframeHeight() {
@@ -84,45 +84,17 @@
         console.log(`Iframe高度 = ${windowHeight}px + ${navHeight}px = ${iframeHeight}px`);
       }
       
-      // 注入CSS隐藏iframe内的3个按钮
-      function hideOptimizerButtons() {
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-          
-          // 创建style标签
-          const style = iframeDoc.createElement('style');
-          style.id = 'hide-optimizer-buttons';
-          style.textContent = `
-            /* 隐藏辅助功能区的3个按钮 */
-            .nav-actions > *:nth-last-child(1),  /* 语言切换 */
-            .nav-actions > *:nth-last-child(2),  /* GitHub按钮 */
-            .nav-actions > *:nth-last-child(3) { /* 主题切换 */
-              display: none !important;
-            }
-          `;
-          
-          // 注入到iframe的head
-          iframeDoc.head.appendChild(style);
-          console.log('✅ 已隐藏优化器顶部的3个按钮');
-        } catch (error) {
-          console.warn('❌ 无法访问iframe内容（可能是跨域限制）:', error);
-        }
-      }
-      
       iframe.addEventListener('load', () => {
-        console.log('Prompt Optimizer loaded');
+        console.log('Duty Info System loaded');
         adjustIframeHeight();
-        
-        // iframe加载完成后注入CSS
-        setTimeout(hideOptimizerButtons, 100);
       });
       
       window.addEventListener('resize', adjustIframeHeight);
       document.addEventListener('DOMContentLoaded', adjustIframeHeight);
       
       iframe.addEventListener('error', () => {
-        console.error('Failed to load Prompt Optimizer');
-        alert('无法加载Prompt优化器。\n\n请确保已经启动了prompt-optimizer服务：\ncd ~/prompt-optimizer && pnpm dev:desktop');
+        console.error('Failed to load Duty Info System');
+        alert('无法加载值日提醒系统。\n\n请确保已经启动了dutyinfo服务：\ncd ~/tmpprj/dutyinfo/web_ui && python app.py');
       });
     </script>
   </body>
