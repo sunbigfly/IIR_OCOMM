@@ -634,7 +634,7 @@ main() {
             echo "命令:"
             echo "  deploy     完整部署流程（推荐）"
             echo "  install    仅安装服务"
-            echo "  start      启动服务（自动启动 Optimizer）"
+            echo "  start      启动服务（自动启动 Optimizer 和 DutyInfo）"
             echo "  stop       停止服务" 
             echo "  restart    重启服务"
             echo "  status     查看状态"
