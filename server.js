@@ -41,6 +41,8 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`   辅料手册:   http://localhost:${config.port}/handbook`);
   console.log(`   PDF翻译:    http://localhost:${config.port}/translator`);
   console.log(`   Prompt优化: http://localhost:${config.port}/optimizer`);
+  console.log(`   值日提醒:   http://localhost:${config.port}/dutyinfo`);
+  console.log(`   细胞库管理: http://localhost:${config.port}/cbms`);
   console.log('\n⏹️  按 Ctrl+C 停止服务器\n');
 
   // 尝试自动打开浏览器

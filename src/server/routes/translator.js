@@ -160,11 +160,17 @@ async function translatePDF(requestId, inputPath, originalName, outputDir, emplo
     let isCancelled = false;
 
     childProcess.stdout.on('data', (data) => {
-      stdout += data.toString();
+      const text = data.toString();
+      stdout += text;
+      // 实时输出 stdout 到日志
+      logger.info(`[${requestId}] stdout: ${text.trim()}`);
     });
 
     childProcess.stderr.on('data', (data) => {
-      stderr += data.toString();
+      const text = data.toString();
+      stderr += text;
+      // 实时输出 stderr 到日志
+      logger.info(`[${requestId}] stderr: ${text.trim()}`);
     });
 
     // 设置超时
@@ -209,7 +215,11 @@ async function translatePDF(requestId, inputPath, originalName, outputDir, emplo
       
       if (code === 0) {
         const displayName = Buffer.from(originalName, 'utf8').toString('utf8');
-        logger.info(`翻译成功: ${displayName}`);
+        logger.info(`[${requestId}] 翻译进程退出，退出码: ${code}`);
+        logger.info(`[${requestId}] 翻译成功: ${displayName}`);
+        
+        // 等待一小段时间，确保文件完全写入磁盘
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // 查找输出文件 - 处理大小写扩展名问题
         const inputFileName = path.basename(inputPath);
@@ -224,13 +234,14 @@ async function translatePDF(requestId, inputPath, originalName, outputDir, emplo
           path.join(outputDir, `${baseName}.pdf`),
         ];
         
-        logger.info(`查找输出文件，baseName: ${baseName}`);
+        logger.info(`[${requestId}] 查找输出文件，baseName: ${baseName}`);
+        logger.info(`[${requestId}] 输出目录: ${outputDir}`);
         
         // 依次检查可能的输出文件
         for (const outputPath of possibleOutputs) {
           try {
             await fs.access(outputPath);
-            logger.info(`找到输出文件: ${path.basename(outputPath)}`);
+            logger.info(`[${requestId}] ✅ 找到输出文件: ${path.basename(outputPath)}`);
             resolve(outputPath);
             return;
           } catch (err) {
@@ -238,15 +249,57 @@ async function translatePDF(requestId, inputPath, originalName, outputDir, emplo
           }
         }
         
-        // 如果都没找到，尝试列出输出目录看看生成了什么
+        // 如果都没找到，列出输出目录并尝试智能匹配
         try {
           const files = await fs.readdir(outputDir);
-          logger.error(`❌ 未找到预期的输出文件`);
-          logger.error(`baseName: ${baseName}`);
-          logger.error(`预期: ${baseName}.no_watermark.zh-cn.mono.pdf`);
-          logger.error(`输出目录所有文件: ${files.join(', ')}`);
+          logger.error(`[${requestId}] ❌ 未找到预期的输出文件`);
+          logger.error(`[${requestId}] baseName: ${baseName}`);
+          logger.error(`[${requestId}] 预期: ${baseName}.no_watermark.zh-cn.mono.pdf`);
+          logger.error(`[${requestId}] 输出目录所有文件 (${files.length}): ${files.join(', ')}`);
+          
+          // 尝试智能匹配：查找包含 baseName 的任何 PDF 文件
+          const matchedFiles = files.filter(f => 
+            f.includes(baseName) && f.toLowerCase().endsWith('.pdf')
+          );
+          
+          if (matchedFiles.length > 0) {
+            logger.info(`[${requestId}] 🔍 找到相似的文件: ${matchedFiles.join(', ')}`);
+            // 优先选择包含 zh-cn 的文件
+            const zhFile = matchedFiles.find(f => f.includes('zh-cn') || f.includes('zh-CN'));
+            const selectedFile = zhFile || matchedFiles[0];
+            const matchedPath = path.join(outputDir, selectedFile);
+            logger.info(`[${requestId}] ✅ 使用匹配的文件: ${selectedFile}`);
+            resolve(matchedPath);
+            return;
+          }
+          
+          // 最后尝试：查找最新创建的 PDF 文件
+          const pdfFiles = files.filter(f => f.toLowerCase().endsWith('.pdf'));
+          if (pdfFiles.length > 0) {
+            logger.info(`[${requestId}] 🔍 尝试查找最新的 PDF 文件`);
+            const fileStats = await Promise.all(
+              pdfFiles.map(async (f) => {
+                const filePath = path.join(outputDir, f);
+                const stat = await fs.stat(filePath);
+                return { name: f, path: filePath, mtime: stat.mtime };
+              })
+            );
+            
+            // 按修改时间排序，选择最新的
+            fileStats.sort((a, b) => b.mtime - a.mtime);
+            const newestFile = fileStats[0];
+            
+            // 检查文件是否在翻译开始后创建
+            const translationStartTime = runningProcesses.get(requestId)?.startTime || Date.now();
+            if (newestFile.mtime.getTime() >= translationStartTime - 5000) { // 5秒容差
+              logger.info(`[${requestId}] ✅ 使用最新创建的文件: ${newestFile.name}`);
+              resolve(newestFile.path);
+              return;
+            }
+          }
+          
         } catch (err) {
-          logger.error(`读取输出目录失败: ${err.message}`);
+          logger.error(`[${requestId}] 读取输出目录失败: ${err.message}`);
         }
         
         reject(new Error('未找到输出文件'));
@@ -640,6 +693,66 @@ router.delete('/api/translate/history', requireAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/translate/download
+ * 下载/查看翻译文件（设置正确的文件名）
+ */
+router.get('/api/translate/download', requireAuth, async (req, res) => {
+  const filePath = req.query.path;
+  const fileType = req.query.type;
+  const originalName = req.query.originalName;
+  const employeeId = req.employeeId;
+  
+  if (!filePath || !originalName) {
+    return res.status(400).json({
+      success: false,
+      error: '缺少必要参数'
+    });
+  }
+  
+  try {
+    // 安全检查：确保文件路径属于当前用户
+    const userUploadDir = getUserUploadDir(employeeId);
+    const userOutputDir = getUserOutputDir(employeeId);
+    
+    let fullPath;
+    if (fileType === 'input') {
+      fullPath = path.join(userUploadDir, path.basename(filePath));
+    } else if (fileType === 'output') {
+      fullPath = path.join(userOutputDir, path.basename(filePath));
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: '无效的文件类型'
+      });
+    }
+    
+    // 检查文件是否存在
+    await fs.access(fullPath);
+    
+    // 生成显示文件名
+    let displayName = originalName;
+    if (fileType === 'output') {
+      // 中文译文使用 _zh.pdf 后缀
+      displayName = originalName.replace(/\.pdf$/i, '_zh.pdf');
+    }
+    
+    // 设置响应头
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(displayName)}`);
+    
+    // 发送文件
+    res.sendFile(fullPath);
+    
+  } catch (error) {
+    logger.error('文件下载错误:', error);
+    res.status(404).json({
+      success: false,
+      error: '文件不存在'
     });
   }
 });

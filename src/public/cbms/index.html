@@ -5,16 +5,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1a73e8" />
-  <meta name="description" content="值日提醒系统 - 智能值日管理工具" />
+  <meta name="description" content="细胞库管理系统 - Cell Bank Management System" />
   <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
-  <title>值日提醒 - Pharma Toolbox</title>
+  <title>细胞库管理 - Pharma Toolbox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/common/styles/main.css?v=1.1.2" />
   <style>
     /* 配合全局flex布局：内容区域 */
-    .dutyinfo-container {
+    .cbms-container {
       flex: 1 1 auto;
       overflow: hidden;
       width: 100%;
@@ -22,7 +22,7 @@
       position: relative;
     }
 
-    .dutyinfo-frame {
+    .cbms-frame {
       border: none;
       display: block;
       /* 90% 缩放效果 */
@@ -59,26 +59,27 @@
         <a href="/handbook" class="nav-link">辅料手册</a>
         <a href="/translator" class="nav-link">PDF翻译</a>
         <a href="/optimizer" class="nav-link">Prompt优化</a>
-        <a href="/dutyinfo" class="nav-link active">值日提醒</a>
-        <a href="/cbms" class="nav-link">细胞库管理</a>
+        <a href="/dutyinfo" class="nav-link">值日提醒</a>
+        <a href="/cbms" class="nav-link active">细胞库管理</a>
       </div>
     </div>
   </nav>
 
-  <div class="dutyinfo-container">
-    <iframe class="dutyinfo-frame" src="" title="Duty Info System" allow="clipboard-read; clipboard-write"></iframe>
+  <div class="cbms-container">
+    <iframe class="cbms-frame" src="" title="Cell Bank Management System"
+      allow="clipboard-read; clipboard-write"></iframe>
   </div>
 
   <script>
-    const iframe = document.querySelector('.dutyinfo-frame');
+    const iframe = document.querySelector('.cbms-frame');
     const nav = document.querySelector('.main-nav');
 
     // 动态设置iframe的src，支持局域网访问
     const hostname = window.location.hostname;
-    iframe.src = `http://${hostname}:7860`;
+    iframe.src = `http://${hostname}:3000`;
 
     // 动态调整容器高度 = 窗口高度 - 导航栏高度
-    const container = document.querySelector('.dutyinfo-container');
+    const container = document.querySelector('.cbms-container');
 
     function adjustContainerHeight() {
       const windowHeight = window.innerHeight;
@@ -90,7 +91,7 @@
     }
 
     iframe.addEventListener('load', () => {
-      console.log('Duty Info System loaded');
+      console.log('Cell Bank Management System loaded');
       adjustContainerHeight();
     });
 
@@ -98,8 +99,8 @@
     document.addEventListener('DOMContentLoaded', adjustContainerHeight);
 
     iframe.addEventListener('error', () => {
-      console.error('Failed to load Duty Info System');
-      alert('无法加载值日提醒系统。\n\n请确保已经启动了dutyinfo服务：\ncd ~/tmpprj/dutyinfo/web_ui && python app.py');
+      console.error('Failed to load Cell Bank Management System');
+      alert('无法加载细胞库管理系统。\n\n请确保已经启动了cbms服务：\ncd ~/cbms && pnpm build && pnpm start');
     });
   </script>
 </body>

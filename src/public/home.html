@@ -1,169 +1,163 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Pharma Toolbox" />
-    <meta name="theme-color" content="#1a73e8" />
-    <meta
-      name="description"
-      content="Pharma Toolbox - 医药工具箱：FDA数据库检索、药用辅料手册、PDF翻译一站式平台" />
-    <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
-    <title>Pharma Toolbox - 医药工具箱</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/common/styles/main.css?v=1.1.1" />
-  </head>
-  <body>
-    <!-- 全局导航栏 -->
-    <nav class="main-nav">
-      <div class="nav-container">
-        <a href="/" class="nav-brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M9 7H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M9 12H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M9 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          Pharma Toolbox
-        </a>
-        <div class="nav-links">
-          <a href="/" class="nav-link active">首页</a>
-          <a href="/fda" class="nav-link">FDA检索</a>
-          <a href="/handbook" class="nav-link">辅料手册</a>
-          <a href="/translator" class="nav-link">PDF翻译</a>
-          <a href="/optimizer" class="nav-link">Prompt优化</a>
-          <a href="/dutyinfo" class="nav-link">值日提醒</a>
-        </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Pharma Toolbox" />
+  <meta name="theme-color" content="#1a73e8" />
+  <meta name="description" content="Pharma Toolbox - 医药工具箱：FDA数据库检索、药用辅料手册、PDF翻译一站式平台" />
+  <link rel="icon" type="image/svg+xml" href="/common/images/favicon.ico" />
+  <title>Pharma Toolbox - 医药工具箱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/common/styles/main.css?v=1.1.1" />
+</head>
+
+<body>
+  <!-- 全局导航栏 -->
+  <nav class="main-nav">
+    <div class="nav-container">
+      <a href="/" class="nav-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M9 7H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <path d="M9 12H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <path d="M9 17H12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        Pharma Toolbox
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link active">首页</a>
+        <a href="/fda" class="nav-link">FDA检索</a>
+        <a href="/handbook" class="nav-link">辅料手册</a>
+        <a href="/translator" class="nav-link">PDF翻译</a>
+        <a href="/optimizer" class="nav-link">Prompt优化</a>
+        <a href="/dutyinfo" class="nav-link">值日提醒</a>
+        <a href="/cbms" class="nav-link">细胞库管理</a>
       </div>
-    </nav>
+    </div>
+  </nav>
 
-    <div class="container">
-      <header>
-        <h1>Pharma Toolbox</h1>
-        <p class="subtitle">医药工具箱 - 专业的医药信息检索与文档处理平台<br/>FDA数据库 · 辅料手册 · PDF翻译 · Prompt优化 · 值日提醒</p>
-      </header>
+  <div class="container">
+    <header>
+      <h1>Pharma Toolbox</h1>
+    </header>
 
-      <!-- System Cards -->
-      <div class="cards-container">
+    <!-- System Cards -->
+    <div class="cards-container">
       <!-- FDA检索卡片 -->
       <a href="/fda" class="system-card">
         <div class="card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 16V8C20.9996 7.64927 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64927 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M3.27002 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path
+              d="M21 16V8C20.9996 7.64927 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64927 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M3.27002 6.96L12 12.01L20.73 6.96" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M12 22.08V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
           </svg>
         </div>
         <h2 class="card-title">FDA 非活性成分数据库检索</h2>
-        <p class="card-description">
-          查询FDA批准的非活性成分信息，包含约15万条记录，支持中英文搜索和批量查询
-        </p>
-        <ul class="card-features">
-          <li>多字段搜索：成分名称、给药途径、剂型、CAS号、UNII</li>
-          <li>中英文对照支持</li>
-          <li>分号分隔批量搜索</li>
-          <li>智能缓存，快速加载</li>
-          <li>结果导出为Excel</li>
-        </ul>
+        <p class="card-description">查询FDA批准的非活性成分信息，支持中英文搜索和批量查询</p>
       </a>
 
       <!-- 辅料手册卡片 -->
       <a href="/handbook" class="system-card">
         <div class="card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path
+              d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </div>
         <h2 class="card-title">药用辅料手册检索</h2>
-        <p class="card-description">
-          浏览和搜索药用辅料手册文档，提供中英文双语PDF在线预览和下载
-        </p>
-        <ul class="card-features">
-          <li>英文关键词模糊搜索</li>
-          <li>分号分隔批量搜索</li>
-          <li>中英文双语PDF文档</li>
-          <li>在线预览和下载</li>
-          <li>按编号和名称组织</li>
-        </ul>
+        <p class="card-description">浏览和搜索药用辅料手册文档，提供中英文双语PDF在线预览和下载</p>
       </a>
 
       <!-- PDF翻译器卡片 -->
       <a href="/translator" class="system-card">
         <div class="card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12.87 15.07L10.33 12.56L10.36 12.53C12.1 10.59 13.34 8.36 14.07 6H17V4H10V2H8V4H1V6H12.17C11.5 7.92 10.44 9.75 9 11.35C8.07 10.32 7.3 9.19 6.69 8H4.69C5.42 9.63 6.42 11.17 7.67 12.56L2.58 17.58L4 19L9 14L12.11 17.11L12.87 15.07ZM18.5 10H16.5L12 22H14L15.12 19H19.87L21 22H23L18.5 10ZM15.88 17L17.5 12.67L19.12 17H15.88Z" fill="currentColor"/>
+            <path
+              d="M12.87 15.07L10.33 12.56L10.36 12.53C12.1 10.59 13.34 8.36 14.07 6H17V4H10V2H8V4H1V6H12.17C11.5 7.92 10.44 9.75 9 11.35C8.07 10.32 7.3 9.19 6.69 8H4.69C5.42 9.63 6.42 11.17 7.67 12.56L2.58 17.58L4 19L9 14L12.11 17.11L12.87 15.07ZM18.5 10H16.5L12 22H14L15.12 19H19.87L21 22H23L18.5 10ZM15.88 17L17.5 12.67L19.12 17H15.88Z"
+              fill="currentColor" />
           </svg>
         </div>
         <h2 class="card-title">PDF 翻译器</h2>
-        <p class="card-description">
-          基于 pdf2zh-next 的智能PDF翻译工具，支持批量翻译，保留原始格式
-        </p>
-        <ul class="card-features">
-          <li>支持多文件批量上传</li>
-          <li>英文→中文智能翻译</li>
-          <li>保留PDF原始排版</li>
-          <li>实时翻译进度显示</li>
-          <li>本地历史记录管理</li>
-        </ul>
+        <p class="card-description">基于 pdf2zh-next 的智能PDF翻译工具，支持批量翻译，保留原始格式</p>
       </a>
 
       <!-- Prompt优化器卡片 -->
       <a href="/optimizer" class="system-card">
         <div class="card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" fill="currentColor"/>
+            <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"
+              fill="currentColor" />
           </svg>
         </div>
         <h2 class="card-title">Prompt 优化器</h2>
-        <p class="card-description">
-          专业的AI提示词优化工具，支持多模式优化、版本管理和实时测试
-        </p>
-        <ul class="card-features">
-          <li>系统/用户提示词双模式</li>
-          <li>高级上下文管理</li>
-          <li>变量与工具支持</li>
-          <li>版本迭代与对比</li>
-          <li>实时测试与历史记录</li>
-        </ul>
+        <p class="card-description">专业的AI提示词优化工具，支持多模式优化、版本管理和实时测试</p>
       </a>
 
       <!-- 值日提醒系统卡片 -->
       <a href="/dutyinfo" class="system-card">
         <div class="card-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 14H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 14H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 14H16.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 18H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 18H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path
+              d="M19 4H5C3.89543 4 3 4.89543 3 6V20C3 21.1046 3.89543 22 5 22H19C20.1046 22 21 21.1046 21 20V6C21 4.89543 20.1046 4 19 4Z"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M16 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M3 10H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8 14H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M12 14H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M16 14H16.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M8 18H8.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path d="M12 18H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
           </svg>
         </div>
         <h2 class="card-title">值日提醒系统</h2>
-        <p class="card-description">
-          智能值日管理工具，支持日程配置、自动提醒和成员管理
-        </p>
-        <ul class="card-features">
-          <li>值日人员管理</li>
-          <li>自动排班轮换</li>
-          <li>多渠道提醒通知</li>
-          <li>历史记录查询</li>
-          <li>灵活的配置选项</li>
-        </ul>
+        <p class="card-description">智能值日管理工具，支持日程配置、自动提醒和成员管理</p>
       </a>
-      </div>
-    </div>
 
-  </body>
+      <!-- 细胞库管理系统卡片 -->
+      <a href="/cbms" class="system-card">
+        <div class="card-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+            <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2" />
+            <path d="M12 2V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M12 20V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M2 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M20 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M4.93 4.93L6.34 6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M17.66 17.66L19.07 19.07" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M4.93 19.07L6.34 17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <path d="M17.66 6.34L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <h2 class="card-title">细胞库管理系统</h2>
+        <p class="card-description">专业的细胞库信息管理平台，支持细胞库存、培养记录和质量管理</p>
+      </a>
+    </div>
+  </div>
+
+</body>
+
 </html>

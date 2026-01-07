@@ -10,6 +10,7 @@ readonly CONDA_ENV="base"  # 如果需要切换conda环境，改这里
 
 readonly OPTIMIZER_PORT=18181
 readonly DUTYINFO_PORT=7860
+readonly CBMS_PORT=3000
 readonly MAIN_PORT=8000
 
 # ============ 颜色 ============
@@ -82,6 +83,7 @@ cleanup_ports() {
     log "清理端口..."
     kill_port $OPTIMIZER_PORT
     kill_port $DUTYINFO_PORT
+    kill_port $CBMS_PORT
     kill_port $MAIN_PORT
     ok "端口已清理"
 }
@@ -171,10 +173,36 @@ start_dutyinfo() {
     warn "DutyInfo 启动超时（查看 /tmp/dutyinfo.log）"
 }
 
+start_cbms() {
+    local dir="$USER_HOME/cbms"
+    [ ! -d "$dir" ] && { warn "CBMS 未安装，跳过"; return 0; }
+    
+    lsof -i:$CBMS_PORT >/dev/null 2>&1 && { log "CBMS 已运行"; return 0; }
+    
+    [ ! -x "$PNPM_PATH" ] && { warn "pnpm 未找到，跳过 CBMS"; return 0; }
+    
+    log "启动 CBMS (细胞库管理)..."
+    log "  └─ Next.js 构建较慢，将在后台完成"
+    
+    # 后台构建并启动（不等待）
+    local cmd="cd '$dir' && '$PNPM_PATH' build && '$PNPM_PATH' start >/tmp/cbms.log 2>&1 &"
+    
+    if [ "$EUID" -eq 0 ]; then
+        sudo -u "$USER" bash -c "source $USER_HOME/.bashrc 2>/dev/null || true; $cmd"
+    else
+        bash -c "source $USER_HOME/.bashrc 2>/dev/null || true; $cmd"
+    fi
+    
+    # 只等待几秒确认进程启动
+    sleep 2
+    ok "CBMS 已在后台启动（构建中，查看 /tmp/cbms.log）"
+}
+
 stop_deps() {
     log "停止子服务..."
     kill_port $OPTIMIZER_PORT
     kill_port $DUTYINFO_PORT
+    kill_port $CBMS_PORT
     ok "子服务已停止"
 }
 
@@ -350,6 +378,7 @@ show_status() {
     
     lsof -i:$OPTIMIZER_PORT >/dev/null 2>&1 && ok "Optimizer: http://localhost:$OPTIMIZER_PORT" || warn "Optimizer: 未运行"
     lsof -i:$DUTYINFO_PORT >/dev/null 2>&1 && ok "DutyInfo: http://localhost:$DUTYINFO_PORT" || warn "DutyInfo: 未运行"
+    lsof -i:$CBMS_PORT >/dev/null 2>&1 && ok "CBMS: http://localhost:$CBMS_PORT" || warn "CBMS (细胞库管理): 未运行"
     
     echo "=================================="
 }
@@ -411,6 +440,7 @@ main() {
             detect_env
             start_optimizer
             start_dutyinfo
+            start_cbms
             ;;
         stop-deps)
             # systemd 内部调用（清理端口不需要detect_env）

@@ -999,7 +999,8 @@ function createActionButtons(task) {
   if (task.inputPath) {
     const viewInputBtn = createButton('查看原文', 'btn-action', {
       'data-action': 'view-input',
-      'data-path': task.inputPath
+      'data-path': task.inputPath,
+      'data-filename': task.fileName
     });
     div.appendChild(viewInputBtn);
   }
@@ -1008,7 +1009,8 @@ function createActionButtons(task) {
   if (task.status === 'success' && task.outputPath) {
     const viewOutputBtn = createButton('查看译文', 'btn-action', {
       'data-action': 'view-output',
-      'data-path': task.outputPath
+      'data-path': task.outputPath,
+      'data-filename': task.fileName
     });
     div.appendChild(viewOutputBtn);
   }
@@ -1066,8 +1068,10 @@ function handleHistoryTableClick(e) {
   
   switch (action) {
     case 'view-input':
+      openFile(btn.dataset.path, 'input', btn.dataset.filename);
+      break;
     case 'view-output':
-      openFile(btn.dataset.path);
+      openFile(btn.dataset.path, 'output', btn.dataset.filename);
       break;
     case 'view-error':
       alert(btn.title || '未知错误');
@@ -1079,14 +1083,33 @@ function handleHistoryTableClick(e) {
 }
 
 /**
- * 打开文件
+ * 打开文件（使用原始文件名）
  */
-function openFile(filePath) {
-  if (!filePath) {
+function openFile(filePath, type, originalName) {
+  if (!filePath || !originalName) {
     alert('文件路径不存在');
     return;
   }
-  window.open(filePath, '_blank');
+  
+  // 获取认证token
+  const token = window.authManager.getToken();
+  if (!token) {
+    alert('未登录，请重新登录');
+    return;
+  }
+  
+  // 构建新的下载URL，使用原始文件名并附带token
+  const params = new URLSearchParams({
+    path: filePath,
+    type: type,
+    originalName: originalName,
+    token: token  // 在URL中附带token
+  });
+  
+  const downloadUrl = `/api/translate/download?${params.toString()}`;
+  
+  // 打开新窗口查看文件
+  window.open(downloadUrl, '_blank');
 }
 
 /**

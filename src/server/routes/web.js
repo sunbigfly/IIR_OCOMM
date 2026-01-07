@@ -43,5 +43,10 @@ router.get('/dutyinfo', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'dutyinfo/index.html'));
 });
 
+// 细胞库管理系统页面
+router.get('/cbms', (req, res) => {
+  res.sendFile(path.join(config.publicDir, 'cbms/index.html'));
+});
+
 module.exports = router;
 
